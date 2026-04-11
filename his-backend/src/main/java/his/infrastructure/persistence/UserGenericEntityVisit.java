@@ -18,6 +18,15 @@ public class UserGenericEntityVisit {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "telefono")
+    private String telefono;
+
+    @Column(name = "direccion")
+    private String direccion;
+
+    @Column(name = "dpi")
+    private String dpi;
+
     @JsonIgnore
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_id", referencedColumnName = "user_id")
