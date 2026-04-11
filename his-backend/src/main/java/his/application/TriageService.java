@@ -33,7 +33,6 @@ public class TriageService implements TriageUseCase {
 
     private final TriageRecordRepository triageRecordRepository;
     private final PatientRepository patientRepository;
-    private final PatientService patientService;
     private final AuditService auditService;
 
     @Override
@@ -125,7 +124,7 @@ public class TriageService implements TriageUseCase {
     private TriageResponse mapToResponse(TriageRecord record) {
         return TriageResponse.builder()
                 .triageId(record.getTriageId())
-                .patient(patientService.mapToResponse(record.getPatient()))
+                .patient(PatientMapper.toResponse(record.getPatient()))
                 .systolicPressure(record.getSystolicPressure())
                 .diastolicPressure(record.getDiastolicPressure())
                 .heartRate(record.getHeartRate())

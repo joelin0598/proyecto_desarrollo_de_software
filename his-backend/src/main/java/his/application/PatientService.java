@@ -105,22 +105,7 @@ public class PatientService implements PatientUseCase {
                 .collect(Collectors.toList());
     }
 
-    public PatientResponse mapToResponse(Patient patient) {
-        return PatientResponse.builder()
-                .patientId(patient.getPatientId())
-                .fullName(patient.getFullName())
-                .dpi(patient.getDpi())
-                .birthDate(patient.getBirthDate())
-                .gender(patient.getGender())
-                .phone(patient.getPhone())
-                .email(patient.getEmail())
-                .address(patient.getAddress())
-                .emergencyContactName(patient.getEmergencyContactName())
-                .emergencyContactPhone(patient.getEmergencyContactPhone())
-                .insurancePolicyNumber(patient.getInsurancePolicyNumber())
-                .insuranceProvider(patient.getInsuranceProvider())
-                .createdAt(patient.getCreatedAt())
-                .updatedAt(patient.getUpdatedAt())
-                .build();
+    private PatientResponse mapToResponse(Patient patient) {
+        return PatientMapper.toResponse(patient);
     }
 }

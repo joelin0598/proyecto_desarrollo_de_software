@@ -27,7 +27,6 @@ public class AppointmentService implements AppointmentUseCase {
 
     private final AppointmentRepository appointmentRepository;
     private final PatientRepository patientRepository;
-    private final PatientService patientService;
     private final AuditService auditService;
 
     @Override
@@ -80,7 +79,7 @@ public class AppointmentService implements AppointmentUseCase {
     private AppointmentResponse mapToResponse(Appointment appointment) {
         return AppointmentResponse.builder()
                 .appointmentId(appointment.getAppointmentId())
-                .patient(patientService.mapToResponse(appointment.getPatient()))
+                .patient(PatientMapper.toResponse(appointment.getPatient()))
                 .doctorName(appointment.getDoctorName())
                 .specialty(appointment.getSpecialty())
                 .appointmentDate(appointment.getAppointmentDate())
