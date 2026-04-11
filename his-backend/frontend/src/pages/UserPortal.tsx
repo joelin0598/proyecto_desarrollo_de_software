@@ -57,7 +57,10 @@ const UserPortal: React.FC = () => {
                   <p className="text-xs text-gray-600 mt-1">Medicina General</p>
                 </div>
               </div>
-              <button className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition text-sm font-semibold">
+              <button
+                className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition text-sm font-semibold"
+                onClick={() => navigate('/user/appointments/new')}
+              >
                 Ver todas las citas
               </button>
             </div>
@@ -144,7 +147,10 @@ const UserPortal: React.FC = () => {
                 <p className="font-semibold text-blue-900">Ver FAQs</p>
                 <p className="text-sm text-blue-700">Preguntas frecuentes</p>
               </button>
-              <button className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition">
+              <button
+                className="w-full text-left p-3 bg-green-50 hover:bg-green-100 rounded-lg transition"
+                onClick={() => navigate('/user/appointments/new')}
+              >
                 <p className="font-semibold text-green-900">Solicitar Cita</p>
                 <p className="text-sm text-green-700">Agendar nueva cita</p>
               </button>

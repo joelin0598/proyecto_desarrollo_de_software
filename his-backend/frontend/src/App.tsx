@@ -6,6 +6,8 @@ import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import AdminDashboard from '@/pages/AdminDashboard'
 import UserPortal from '@/pages/UserPortal'
+import AppointmentScheduling from '@/pages/AppointmentScheduling'
+import PaymentVerification from '@/pages/PaymentVerification'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 function App() {
@@ -29,10 +31,28 @@ function App() {
           />
 
           <Route
+            path="/admin/payments"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <PaymentVerification />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/user"
             element={
               <ProtectedRoute requiredRole="USER">
                 <UserPortal />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/user/appointments/new"
+            element={
+              <ProtectedRoute requiredRole="USER">
+                <AppointmentScheduling />
               </ProtectedRoute>
             }
           />
