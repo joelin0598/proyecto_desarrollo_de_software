@@ -48,6 +48,41 @@ export interface ErrorResponse {
   errorMessage: string
 }
 
+export interface PatientRequest {
+  firstName: string
+  lastName: string
+  dpi: string
+  fechaNacimiento: string
+  genero: string
+  telefono: string
+  direccion: string
+  email: string
+}
+
+export interface PatientResponse {
+  id: number
+  firstName: string
+  lastName: string
+  dpi: string
+  fechaNacimiento: string  // ISO date: YYYY-MM-DD (from Java LocalDate)
+  genero: string
+  telefono: string
+  direccion: string
+  email: string
+}
+
+// Patient endpoints
+export const patientAPI = {
+  create: (data: PatientRequest) =>
+    api.post<PatientResponse>('/patients', data),
+
+  getAll: () =>
+    api.get<PatientResponse[]>('/patients'),
+
+  getById: (id: number) =>
+    api.get<PatientResponse>(`/patients/${id}`),
+}
+
 // Auth endpoints
 export const authAPI = {
   login: (data: LoginRequest) =>

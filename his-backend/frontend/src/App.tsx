@@ -6,11 +6,12 @@ import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import AdminDashboard from '@/pages/AdminDashboard'
 import UserPortal from '@/pages/UserPortal'
+import CreatePatient from '@/pages/CreatePatient'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>
         <Routes>
           {/* Public Routes */}
@@ -24,6 +25,15 @@ function App() {
             element={
               <ProtectedRoute requiredRole="ADMIN">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/patients/new"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <CreatePatient />
               </ProtectedRoute>
             }
           />
