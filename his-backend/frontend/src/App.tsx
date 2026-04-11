@@ -6,6 +6,7 @@ import Login from '@/pages/Login'
 import Register from '@/pages/Register'
 import AdminDashboard from '@/pages/AdminDashboard'
 import UserPortal from '@/pages/UserPortal'
+import TriagePage from '@/pages/Triage'
 import ProtectedRoute from '@/components/ProtectedRoute'
 
 function App() {
@@ -24,6 +25,15 @@ function App() {
             element={
               <ProtectedRoute requiredRole="ADMIN">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/triage"
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <TriagePage />
               </ProtectedRoute>
             }
           />

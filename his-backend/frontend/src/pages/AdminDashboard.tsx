@@ -123,8 +123,11 @@ const AdminDashboard: React.FC = () => {
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="font-bold text-lg text-gray-800 mb-4">Acciones Rápidas</h3>
               <div className="space-y-2">
-                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition text-sm font-semibold">
-                  Gestionar Usuarios
+                <button
+                  onClick={() => navigate('/admin/triage')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition text-sm font-semibold"
+                >
+                  Triaje / Registrar Paciente
                 </button>
                 <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition text-sm font-semibold">
                   Ver Reportes
