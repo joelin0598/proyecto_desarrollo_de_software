@@ -46,6 +46,9 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers("/api/patients/**").hasAnyAuthority("ADMIN", "USER")
+                        .requestMatchers("/api/triage/**").hasAuthority("ADMIN")
+                        .requestMatchers("/api/appointments/**").hasAnyAuthority("ADMIN", "USER")
                         .anyRequest().authenticated()
                 )
 
