@@ -48,6 +48,31 @@ export interface ErrorResponse {
   errorMessage: string
 }
 
+export interface PatientRequest {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  dateOfBirth: string
+  gender: string
+  address: string
+  dpi: string
+  emergencyPhone: string
+}
+
+export interface PatientResponse {
+  id: number
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  dateOfBirth: string
+  gender: string
+  address: string
+  dpi: string
+  emergencyPhone: string
+}
+
 // Auth endpoints
 export const authAPI = {
   login: (data: LoginRequest) =>
@@ -61,6 +86,18 @@ export const authAPI = {
 
   logout: () =>
     api.post('/auth/logout'),
+}
+
+// Patient endpoints
+export const patientAPI = {
+  createPatient: (data: PatientRequest) =>
+    api.post<PatientResponse>('/patients', data),
+
+  getPatients: () =>
+    api.get<PatientResponse[]>('/patients'),
+
+  getPatient: (id: number) =>
+    api.get<PatientResponse>(`/patients/${id}`),
 }
 
 export default api
