@@ -30,12 +30,19 @@ public class PatientService {
             throw new IllegalArgumentException("Ya existe un paciente con el DPI proporcionado");
         }
 
+        LocalDate dateOfBirth;
+        try {
+            dateOfBirth = LocalDate.parse(request.getDateOfBirth());
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new IllegalArgumentException("Formato de fecha de nacimiento inválido. Use el formato YYYY-MM-DD");
+        }
+
         PatientEntity patient = PatientEntity.builder()
                 .firstName(request.getFirstName())
                 .lastName(request.getLastName())
                 .email(request.getEmail())
                 .phone(request.getPhone())
-                .dateOfBirth(LocalDate.parse(request.getDateOfBirth()))
+                .dateOfBirth(dateOfBirth)
                 .gender(request.getGender())
                 .address(request.getAddress())
                 .dpi(request.getDpi())
