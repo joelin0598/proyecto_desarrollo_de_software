@@ -126,6 +126,12 @@ const AdminDashboard: React.FC = () => {
                 <button className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition text-sm font-semibold">
                   Gestionar Usuarios
                 </button>
+                <button
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg transition text-sm font-semibold"
+                  onClick={() => navigate('/admin/payments')}
+                >
+                  Verificación de Pagos
+                </button>
                 <button className="w-full bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition text-sm font-semibold">
                   Ver Reportes
                 </button>
