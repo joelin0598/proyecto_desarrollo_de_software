@@ -355,7 +355,7 @@ const PaymentVerification: React.FC = () => {
                       <span className="font-semibold">Q{paymentResult.totalAmount.toFixed(2)}</span>
                     </div>
                   )}
-                  {paymentResult.insuranceCoverage != null && paymentResult.insuranceCoverage > 0 && (
+                  {paymentResult.insuranceCoverage !== null && paymentResult.insuranceCoverage !== undefined && paymentResult.insuranceCoverage > 0 && (
                     <div className="flex justify-between">
                       <span className="text-gray-500">Cobertura Seguro:</span>
                       <span className="font-semibold text-green-700">Q{paymentResult.insuranceCoverage.toFixed(2)}</span>

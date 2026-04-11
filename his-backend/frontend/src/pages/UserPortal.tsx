@@ -61,7 +61,7 @@ const UserPortal: React.FC = () => {
                 className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition text-sm font-semibold"
                 onClick={() => navigate('/user/appointments/new')}
               >
-                Ver todas las citas
+                Solicitar Nueva Cita
               </button>
             </div>
           </div>

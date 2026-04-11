@@ -393,7 +393,7 @@ const AppointmentScheduling: React.FC = () => {
                   <span className="font-semibold">Q{result.baseTariff.toFixed(2)}</span>
                 </div>
               )}
-              {result.deductible != null && result.deductible > 0 && (
+              {result.deductible !== null && result.deductible !== undefined && result.deductible > 0 && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Deducible Seguro:</span>
                   <span className="font-semibold text-green-700">Q{result.deductible.toFixed(2)}</span>
