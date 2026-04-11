@@ -114,10 +114,10 @@ public class TriageService implements TriageUseCase {
     }
 
     private boolean isOrange(TriageRequest r) {
-        if (r.getOxygenSaturation() != null && r.getOxygenSaturation() < 95) return true;
-        if (r.getHeartRate() != null && (r.getHeartRate() < 50 || r.getHeartRate() > 120)) return true;
-        if (r.getSystolicPressure() != null && r.getSystolicPressure() < 90) return true;
-        if (r.getTemperature() != null && r.getTemperature() >= 38.5) return true;
+        if (r.getOxygenSaturation() != null && r.getOxygenSaturation() >= 90 && r.getOxygenSaturation() < 95) return true;
+        if (r.getHeartRate() != null && ((r.getHeartRate() >= 40 && r.getHeartRate() < 50) || (r.getHeartRate() > 120 && r.getHeartRate() <= 150))) return true;
+        if (r.getSystolicPressure() != null && r.getSystolicPressure() >= 70 && r.getSystolicPressure() < 90) return true;
+        if (r.getTemperature() != null && r.getTemperature() >= 38.5 && r.getTemperature() <= 40) return true;
         return false;
     }
 
