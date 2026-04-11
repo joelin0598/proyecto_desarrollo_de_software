@@ -2,6 +2,7 @@ package his.domain.ports;
 
 import his.application.dto.AuthResponse;
 import his.application.dto.AuthenticationRequest;
+import his.application.dto.PatientRequest;
 import his.application.dto.RegisterRequest;
 import his.application.dto.RegisterRequestAdmin;
 
@@ -97,4 +98,14 @@ public interface AuthUseCase {
      * @throws CustomAuthenticationException si el usuario no existe o contraseña es incorrecta
      */
     AuthResponse authenticate(AuthenticationRequest request);
+
+    /**
+     * Registra un nuevo paciente con rol USER e información adicional (teléfono, dirección, DPI).
+     *
+     * @param request DTO con firstName, lastName, email, password y campos opcionales
+     * @return AuthResponse con token JWT y datos del paciente
+     * @throws DuplicateEmailException si el email ya existe
+     * @throws InvalidPasswordFormatException si la contraseña no cumple formato
+     */
+    AuthResponse registerPatient(PatientRequest request);
 }

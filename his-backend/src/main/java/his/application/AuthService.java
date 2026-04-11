@@ -6,6 +6,7 @@ import his.adapters.exception.DuplicateEmailException;
 import his.adapters.exception.InvalidPasswordFormatException;
 import his.application.dto.AuthResponse;
 import his.application.dto.AuthenticationRequest;
+import his.application.dto.PatientRequest;
 import his.application.dto.RegisterRequest;
 import his.application.dto.RegisterRequestAdmin;
 import his.application.dto.UserResponse;
@@ -193,6 +194,51 @@ public class AuthService implements AuthUseCase {
                 .firstName(user.getFirstName())
                 .lastName(user.getLastName())
                 .role(user.getRole())
+                .build();
+    }
+
+    /**
+     * 🏥 Registro de paciente con rol USER e información adicional (teléfono, dirección, DPI).
+     * Transacción que garantiza que si algo falla, se revierte todo.
+     */
+    @Override
+    @Transactional
+    public AuthResponse registerPatient(PatientRequest request) {
+        if (userRepository.findUserByEmail(request.getEmail()).isPresent()) {
+            throw new DuplicateEmailException("El correo electrónico ya está en uso");
+        }
+
+        validatePassword(request.getPassword());
+
+        var user = UserEntity.builder()
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .role(Role.USER)
+                .build();
+
+        user = userRepository.save(user);
+
+        if (user.getUserGenericEntityVisitList() == null) {
+            user.setUserGenericEntityVisitList(new ArrayList<>());
+        }
+
+        var patient = UserGenericEntityVisit.builder()
+                .userId(user)
+                .telefono(request.getTelefono())
+                .direccion(request.getDireccion())
+                .dpi(request.getDpi())
+                .build();
+
+        user.getUserGenericEntityVisitList().add(patient);
+        userGenericVisitRepository.save(patient);
+
+        var jwtToken = jwtService.generateToken(user);
+
+        return AuthResponse.builder()
+                .token(jwtToken)
+                .user(mapToUserResponse(user))
                 .build();
     }
 }

@@ -48,6 +48,16 @@ export interface ErrorResponse {
   errorMessage: string
 }
 
+export interface PatientRequest {
+  firstName: string
+  lastName: string
+  email: string
+  password: string
+  telefono?: string
+  direccion?: string
+  dpi?: string
+}
+
 // Auth endpoints
 export const authAPI = {
   login: (data: LoginRequest) =>
@@ -61,6 +71,12 @@ export const authAPI = {
 
   logout: () =>
     api.post('/auth/logout'),
+}
+
+// Patients endpoints
+export const patientsAPI = {
+  create: (data: PatientRequest) =>
+    api.post<AuthResponse>('/patients', data),
 }
 
 export default api
