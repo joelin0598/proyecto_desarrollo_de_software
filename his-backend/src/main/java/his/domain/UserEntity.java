@@ -1,8 +1,6 @@
 package his.domain;
 
 import his.infrastructure.BaseEntity;
-import his.infrastructure.persistence.UserGenericEntity;
-import his.infrastructure.persistence.UserGenericEntityVisit;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -13,7 +11,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -25,7 +22,7 @@ import java.util.List;
 @Builder
 @EqualsAndHashCode(callSuper = false)
 @Entity
-@Table(name = "users")
+@Table(name = "usuario_sistema")
 public class UserEntity extends BaseEntity implements UserDetails {
 
     @Id
@@ -34,6 +31,7 @@ public class UserEntity extends BaseEntity implements UserDetails {
     private Long userId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "role")
     private Role role;
 
     @Size(max = 255)
@@ -48,7 +46,7 @@ public class UserEntity extends BaseEntity implements UserDetails {
     @NotEmpty
     @Email
     @Size(max = 100)
-    @Column(name = "email")
+    @Column(name = "email", unique = true)
     private String email;
 
     @Column(name = "password")
@@ -68,12 +66,4 @@ public class UserEntity extends BaseEntity implements UserDetails {
     public String getPassword() {
         return password;
     }
-
-    @OneToMany(mappedBy = "userId", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<UserGenericEntity> userGenericEntityList = new ArrayList<>();
-
-    @OneToMany(mappedBy = "userId", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<UserGenericEntityVisit> userGenericEntityVisitList = new ArrayList<>();
 }

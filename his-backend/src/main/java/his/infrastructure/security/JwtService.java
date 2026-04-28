@@ -1,9 +1,6 @@
 package his.infrastructure.security;
 
-import his.domain.Role;
 import his.domain.UserEntity;
-import his.infrastructure.persistence.UserGenericEntity;
-import his.infrastructure.persistence.UserGenericEntityVisit;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -25,7 +22,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import jakarta.annotation.PostConstruct;
 
@@ -92,15 +88,10 @@ public class JwtService {
         logger.info("Generando token para usuario: {}", user.getEmail());
 
         try {
-            Long idUser = extractIdUserByRole(user);
-
             Map<String, Object> claims = new HashMap<>();
             claims.put("role", user.getRole().name());
             claims.put("sub", user.getEmail());
-
-            if (idUser != null) {
-                claims.put("idUser", idUser);
-            }
+            claims.put("idUser", user.getUserId());
 
             String token = generateToken(claims, user);
             logger.info("Token generado exitosamente para usuario: {}", user.getEmail());
@@ -109,35 +100,6 @@ public class JwtService {
             logger.error("Error al generar token para usuario: {}", user.getEmail(), e);
             throw e;
         }
-    }
-
-    /**
-     * Extrae el ID del usuario según su rol.
-     * Para ADMIN: obtiene de UserGenericEntity
-     * Para USER: obtiene de UserGenericEntityVisit
-     *
-     * @param user Usuario del cual extraer el ID
-     * @return ID del usuario o null si no existe
-     */
-    private Long extractIdUserByRole(UserEntity user) {
-        if (user.getRole() == Role.ADMIN) {
-            return user.getUserGenericEntityList() != null
-                ? user.getUserGenericEntityList()
-                    .stream()
-                    .findFirst()
-                    .map(UserGenericEntity::getId)
-                    .orElse(null)
-                : null;
-        } else if (user.getRole() == Role.USER) {
-            return user.getUserGenericEntityVisitList() != null
-                ? user.getUserGenericEntityVisitList()
-                    .stream()
-                    .findFirst()
-                    .map(UserGenericEntityVisit::getId)
-                    .orElse(null)
-                : null;
-        }
-        return null;
     }
 
     /**

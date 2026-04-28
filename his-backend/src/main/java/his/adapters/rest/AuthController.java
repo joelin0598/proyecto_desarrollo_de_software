@@ -73,6 +73,36 @@ public class AuthController {
     }
 
     /**
+     * Endpoint para registro de paciente externo con perfil completo.
+     * Crea usuario_sistema con rol PACIENTE + perfil en tabla paciente (con DPI).
+     *
+     * @param request Datos del paciente (firstName, lastName, email, password, dpi)
+     * @return Token JWT y datos del usuario autenticado
+     */
+    @PostMapping("/register/paciente")
+    public ResponseEntity<AuthResponse> registerPaciente(@Valid @RequestBody RegisterPacienteRequest request) {
+        log.info("Intento de registro de paciente - Email: {}", request.getEmail());
+        AuthResponse response = authService.registerPaciente(request);
+        log.info("Registro de paciente exitoso - Email: {}", request.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Endpoint para registro de personal hospitalario (requiere rol ADMIN).
+     * Crea usuario_sistema con el rol indicado + perfil en tabla personal_hospitalario.
+     *
+     * @param request Datos del personal (nombre, email, password, dpi, direccion, rol, etc.)
+     * @return Token JWT y datos del personal autenticado
+     */
+    @PostMapping("/register/personal")
+    public ResponseEntity<AuthResponse> registerPersonal(@Valid @RequestBody RegisterPersonalRequest request) {
+        log.info("Intento de registro de personal hospitalario - Email: {}", request.getEmail());
+        AuthResponse response = authService.registerPersonal(request);
+        log.info("Registro de personal hospitalario exitoso - Email: {}", request.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
      * Endpoint para logout del usuario
      * Revoca el token JWT actual agregándolo a la blacklist
      * @param httpRequest Petición HTTP (para extraer el token del header Authorization)

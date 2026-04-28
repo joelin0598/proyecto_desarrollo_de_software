@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/register/admin",
+                                "/api/auth/register/paciente",
+                                "/api/auth/register/personal",
                                 "/api/auth/authenticate",
                                 "/api/auth/logout",
                                 "/v3/api-docs/**",
