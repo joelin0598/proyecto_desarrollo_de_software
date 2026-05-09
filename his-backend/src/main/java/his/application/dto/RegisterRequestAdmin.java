@@ -38,4 +38,7 @@ public class RegisterRequestAdmin {
     @NotBlank(message = "El DPI es obligatorio")
     @Pattern(regexp = "^[0-9]{13}$", message = "El DPI debe contener exactamente 13 dígitos")
     private String dpi;
+
+    @Size(max = 20, message = "El número de colegiado no puede exceder 20 caracteres")
+    private String numeroColegiado;
 }

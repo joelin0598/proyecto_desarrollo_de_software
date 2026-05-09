@@ -1,13 +1,14 @@
 import React from 'react'
 import { Navigate } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
+import { getDefaultRouteForRole, useAuth } from '@/context/AuthContext'
+import type { UserRole } from '@/services/api'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
-  requiredRole?: 'USER' | 'ADMIN'
+  requiredRoles?: UserRole[]
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole }) => {
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRoles }) => {
   const { isAuthenticated, user, isLoading } = useAuth()
 
   if (isLoading) {
@@ -25,8 +26,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requiredRole 
     return <Navigate to="/login" replace />
   }
 
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to={user?.role === 'ADMIN' ? '/admin' : '/user'} replace />
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (requiredRoles && !requiredRoles.includes(user.role)) {
+    return <Navigate to={getDefaultRouteForRole(user.role)} replace />
   }
 
   return <>{children}</>

@@ -66,16 +66,16 @@ function LandingPage() {
             </p>
             <div className="flex justify-center gap-4">
               <button
-                onClick={() => navigate('/login')}
-                className="btn-primary bg-white text-blue-600 hover:bg-gray-100"
+                onClick={() => navigate('/login/paciente')}
+                className="btn-primary bg-white text-blue-700 hover:bg-blue-50 font-semibold"
               >
-                Iniciar Sesión
+                Iniciar Sesion
               </button>
               <button
                 onClick={() => navigate('/register')}
-                className="btn-outline border-white text-white hover:bg-blue-700"
+                className="btn-outline border-white bg-blue-800 text-white hover:bg-blue-900 font-semibold"
               >
-                Registrarse
+                Registrarse (Paciente)
               </button>
             </div>
           </div>
@@ -98,10 +98,10 @@ function LandingPage() {
                 <h3 className="card-title">{service.title}</h3>
                 <p className="card-description">{service.description}</p>
                 <button
-                  onClick={() => navigate('/login')}
+                  onClick={() => navigate('/login/paciente')}
                   className="mt-4 text-blue-600 hover:text-blue-800 font-semibold text-sm"
                 >
-                  Acceder →
+                  Acceder como paciente →
                 </button>
               </div>
             ))}
@@ -179,10 +179,10 @@ function LandingPage() {
 
           <div className="text-center mt-12">
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate('/login/paciente')}
               className="btn-primary"
             >
-              Ver todos los médicos
+              Ver todos los medicos
             </button>
           </div>
         </div>

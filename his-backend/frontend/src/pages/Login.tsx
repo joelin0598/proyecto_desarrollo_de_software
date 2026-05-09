@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
+import { getDefaultRouteForRole, isHospitalStaffRole, useAuth } from '@/context/AuthContext'
 import { authAPI, LoginRequest } from '@/services/api'
 import Header from '@/components/Header'
 
@@ -28,14 +28,14 @@ const Login: React.FC = () => {
       const response = await authAPI.login(formData)
       const { token, user } = response.data
 
-      login(user, token)
-
-      // Redirigir según el rol
-      if (user.role === 'ADMIN') {
-        navigate('/admin')
-      } else {
-        navigate('/user')
+      if (isHospitalStaffRole(user.role)) {
+        setError('Esta cuenta pertenece al personal hospitalario. Usa el acceso de personal.')
+        navigate('/login/personal')
+        return
       }
+
+      login(user, token)
+      navigate(getDefaultRouteForRole(user.role))
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'Error al iniciar sesión')
     } finally {
@@ -50,10 +50,10 @@ const Login: React.FC = () => {
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
           <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-            Iniciar Sesión
+            Iniciar Sesion Paciente
           </h1>
           <p className="text-center text-gray-600 mb-8">
-            Accede a tu cuenta del HIS
+            Accede a tu portal en linea
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -110,6 +110,17 @@ const Login: React.FC = () => {
               ¿No tienes cuenta?{' '}
               <Link to="/register" className="text-blue-600 hover:underline font-semibold">
                 Registrarse
+              </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-3">
+              ¿Eres personal del hospital?{' '}
+              <Link to="/login/personal" className="text-blue-600 hover:underline font-semibold">
+                Inicia sesion aqui
+              </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              <Link to="/login" className="text-blue-600 hover:underline font-semibold">
+                Cambiar tipo de acceso
               </Link>
             </p>
           </div>

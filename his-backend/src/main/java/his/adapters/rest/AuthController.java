@@ -3,8 +3,8 @@ package his.adapters.rest;
 import his.adapters.exception.CustomAuthenticationException;
 import his.adapters.exception.DuplicateEmailException;
 import his.adapters.exception.InvalidPasswordFormatException;
-import his.application.AuthService;
 import his.application.dto.*;
+import his.application.usecases.AuthUseCase;
 import his.infrastructure.security.TokenBlacklistService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -15,10 +15,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 🔐 Controlador REST para autenticación y registro de usuarios.
+ * 🔐 Controlador REST de autenticación para usuario_sistema.
  * Maneja:
- * - Registro de usuarios normales (USER)
- * - Registro de administradores (ADMIN)
+ * - Registro de pacientes
+ * - Registro de personal hospitalario
  * - Autenticación y generación de tokens JWT
  * - Manejo centralizado de excepciones
  */
@@ -28,15 +28,15 @@ import org.springframework.web.bind.annotation.*;
 @Slf4j
 public class AuthController {
 
-    private final AuthService authService;
+    private final AuthUseCase authService;
     private final TokenBlacklistService tokenBlacklistService;
 
     private static final String BEARER_PREFIX = "Bearer ";
 
     /**
-     * Endpoint para registro de usuario normal (USER)
-     * @param request Datos del usuario a registrar (firstName, lastName, email, password)
-     * @return Token JWT y datos del usuario autenticado
+     * Endpoint para registro de paciente
+     * @param request Datos del paciente a registrar (firstName, lastName, email, password)
+     * @return Token JWT y datos del paciente autenticado
      */
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
@@ -47,22 +47,33 @@ public class AuthController {
     }
 
     /**
-     * Endpoint para registro de administrador (ADMIN)
-     * @param requestAdmin Datos del administrador (firstName, lastName, email, password, direccion, telefono, dpi)
-     * @return Token JWT y datos del administrador autenticado
+     * Endpoint para registro de personal hospitalario
+     * @param requestAdmin Datos del personal (firstName, lastName, email, password, direccion, telefono, dpi, numeroColegiado)
+     * @return Token JWT y datos del personal autenticado
      */
-    @PostMapping("/register/admin")
-    public ResponseEntity<AuthResponse> registerAdmin(@Valid @RequestBody RegisterRequestAdmin requestAdmin) {
-        log.info("Intento de registro de administrador - Email: {}", requestAdmin.getEmail());
-        AuthResponse response = authService.registerAdmin(requestAdmin);
-        log.info("Registro de administrador exitoso - Email: {}", requestAdmin.getEmail());
+    @PostMapping("/register/personal")
+    public ResponseEntity<AuthResponse> registerPersonal(@Valid @RequestBody RegisterRequestAdmin requestAdmin) {
+        log.info("Intento de registro de personal hospitalario - Email: {}", requestAdmin.getEmail());
+        AuthResponse response = authService.registerPersonal(requestAdmin);
+        log.info("Registro de personal hospitalario exitoso - Email: {}", requestAdmin.getEmail());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
-     * Endpoint para autenticación de usuario
-     * @param request Credenciales del usuario (email, password)
-     * @return Token JWT y datos del usuario autenticado
+     * Endpoint legacy para compatibilidad: redirige al flujo de personal hospitalario.
+     */
+    @PostMapping("/register/admin")
+    public ResponseEntity<AuthResponse> registerAdmin(@Valid @RequestBody RegisterRequestAdmin requestAdmin) {
+        log.info("Intento de registro legacy /admin - Email: {}", requestAdmin.getEmail());
+        AuthResponse response = authService.registerPersonal(requestAdmin);
+        log.info("Registro legacy /admin exitoso - Email: {}", requestAdmin.getEmail());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Endpoint para autenticación de usuario_sistema
+     * @param request Credenciales (email, password)
+     * @return Token JWT y datos del usuario autenticado en el sistema
      */
     @PostMapping("/authenticate")
     public ResponseEntity<AuthResponse> authenticate(@Valid @RequestBody AuthenticationRequest request) {

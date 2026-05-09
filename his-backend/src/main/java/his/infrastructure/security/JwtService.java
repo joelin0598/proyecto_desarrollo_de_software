@@ -1,9 +1,6 @@
 package his.infrastructure.security;
 
-import his.domain.Role;
-import his.domain.UserEntity;
-import his.infrastructure.persistence.UserGenericEntity;
-import his.infrastructure.persistence.UserGenericEntityVisit;
+import his.domain.models.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
@@ -25,7 +22,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 import java.util.function.Function;
 import jakarta.annotation.PostConstruct;
 
@@ -33,7 +29,7 @@ import jakarta.annotation.PostConstruct;
  * Servicio centralizado para generación y validación de tokens JWT.
  *
  * Responsabilidades:
- * - Generar tokens JWT con claims personalizados (role, email, idUser)
+ * - Generar tokens JWT con claims personalizados (role, sub, idUser)
  * - Validar tokens (firma, expiración, usuario)
  * - Extraer información de claims
  * - Gestionar la clave de firma de forma segura
@@ -44,7 +40,7 @@ import jakarta.annotation.PostConstruct;
  *
  * <p><b>Algoritmo:</b> HS256 (HMAC-SHA256)
  *
- * @see JwtFilter - Filter que valida tokens en cada petición
+ * @see JwtFilter - Filtro que valida tokens en cada petición
  */
 @Service
 public class JwtService {
@@ -78,12 +74,12 @@ public class JwtService {
     }
 
     /**
-     * Genera un token JWT con los datos de un usuario (id, rol, email).
+     * Genera un token JWT con los datos de un usuario_sistema (id, rol, email).
      * @param user Usuario autenticado.
      * @return Token JWT firmado.
      * @throws IllegalArgumentException Si el usuario es nulo
      */
-    public String generateToken(UserEntity user){
+    public String generateToken(User user){
         if (user == null) {
             logger.warn("Intento de generar token con usuario nulo");
             throw new IllegalArgumentException("El usuario no puede ser nulo");
@@ -92,7 +88,7 @@ public class JwtService {
         logger.info("Generando token para usuario: {}", user.getEmail());
 
         try {
-            Long idUser = extractIdUserByRole(user);
+            Long idUser = user.getUserId();
 
             Map<String, Object> claims = new HashMap<>();
             claims.put("role", user.getRole().name());
@@ -102,7 +98,7 @@ public class JwtService {
                 claims.put("idUser", idUser);
             }
 
-            String token = generateToken(claims, user);
+            String token = generateToken(claims, user.getEmail());
             logger.info("Token generado exitosamente para usuario: {}", user.getEmail());
             return token;
         } catch (Exception e) {
@@ -111,34 +107,6 @@ public class JwtService {
         }
     }
 
-    /**
-     * Extrae el ID del usuario según su rol.
-     * Para ADMIN: obtiene de UserGenericEntity
-     * Para USER: obtiene de UserGenericEntityVisit
-     *
-     * @param user Usuario del cual extraer el ID
-     * @return ID del usuario o null si no existe
-     */
-    private Long extractIdUserByRole(UserEntity user) {
-        if (user.getRole() == Role.ADMIN) {
-            return user.getUserGenericEntityList() != null
-                ? user.getUserGenericEntityList()
-                    .stream()
-                    .findFirst()
-                    .map(UserGenericEntity::getId)
-                    .orElse(null)
-                : null;
-        } else if (user.getRole() == Role.USER) {
-            return user.getUserGenericEntityVisitList() != null
-                ? user.getUserGenericEntityVisitList()
-                    .stream()
-                    .findFirst()
-                    .map(UserGenericEntityVisit::getId)
-                    .orElse(null)
-                : null;
-        }
-        return null;
-    }
 
     /**
      * Genera un token sin claims adicionales.
@@ -149,6 +117,25 @@ public class JwtService {
             throw new IllegalArgumentException("UserDetails no puede ser nulo");
         }
         return generateToken(Map.of(), userDetails);
+    }
+
+    private String generateToken(Map<String, Object> extraClaims, String subject) {
+        if (extraClaims == null) {
+            extraClaims = new HashMap<>();
+        }
+        if (subject == null || subject.isBlank()) {
+            throw new IllegalArgumentException("El subject del token no puede ser nulo o vacío");
+        }
+        Instant now = Instant.now();
+        Instant expiration = now.plus(tokenExpirationHours, ChronoUnit.HOURS);
+
+        return Jwts.builder()
+                .setClaims(extraClaims)
+                .setSubject(subject)
+                .setIssuedAt(Date.from(now))
+                .setExpiration(Date.from(expiration))
+                .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+                .compact();
     }
     /**
      * Genera un JWT con claims personalizados.
@@ -184,7 +171,7 @@ public class JwtService {
     }
 
     /**
-     * Obtiene el nombre de usuario (subject) de un token.
+     * Obtiene el subject (email de usuario_sistema) desde el token.
      */
     public String getUserName(String token) {
         try {

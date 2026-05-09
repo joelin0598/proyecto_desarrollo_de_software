@@ -1,15 +1,18 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
+import { getDefaultRouteForRole, useAuth } from '@/context/AuthContext'
 import { authAPI, RegisterRequest } from '@/services/api'
 import Header from '@/components/Header'
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
   const { login } = useAuth()
-  const [formData, setFormData] = useState<RegisterRequest>({
+  const [formData, setFormData] = useState<RegisterRequest & { direccion: string; telefono: string; dpi: string }>({
     firstName: '',
     lastName: '',
+    direccion: '',
+    telefono: '',
+    dpi: '',
     email: '',
     password: '',
   })
@@ -31,7 +34,7 @@ const Register: React.FC = () => {
       const { token, user } = response.data
 
       login(user, token)
-      navigate('/user')
+      navigate(getDefaultRouteForRole(user.role))
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'Error al registrarse')
     } finally {
@@ -46,10 +49,10 @@ const Register: React.FC = () => {
       <div className="flex-1 flex items-center justify-center px-4 py-8">
         <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
           <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-            Registrarse
+            Registro de Paciente
           </h1>
           <p className="text-center text-gray-600 mb-8">
-            Crea tu cuenta de usuario
+            Completa el formulario para crear tu cuenta
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -87,6 +90,53 @@ const Register: React.FC = () => {
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                   placeholder="Pérez"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Direccion
+              </label>
+              <input
+                type="text"
+                name="direccion"
+                value={formData.direccion}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                placeholder="Zona, colonia y referencia"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Telefono
+                </label>
+                <input
+                  type="tel"
+                  name="telefono"
+                  value={formData.telefono}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="12345678"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  DPI
+                </label>
+                <input
+                  type="text"
+                  name="dpi"
+                  value={formData.dpi}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="13 digitos"
                 />
               </div>
             </div>
@@ -136,8 +186,13 @@ const Register: React.FC = () => {
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               ¿Ya tienes cuenta?{' '}
+              <Link to="/login/paciente" className="text-blue-600 hover:underline font-semibold">
+                Inicia sesion
+              </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
               <Link to="/login" className="text-blue-600 hover:underline font-semibold">
-                Inicia sesión
+                Cambiar tipo de acceso
               </Link>
             </p>
           </div>

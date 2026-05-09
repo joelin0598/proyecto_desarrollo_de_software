@@ -8,7 +8,7 @@ public class SecurityUtil {
 
     public static String getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.getPrincipal() instanceof UserDetails userDetails) {//Aquí se hizo un cambio
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetails userDetails) {
             return userDetails.getUsername();
         }
         return "Sistema"; // Valor por defecto si no hay un usuario autenticado

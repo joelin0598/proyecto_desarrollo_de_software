@@ -1,6 +1,6 @@
 package his.infrastructure.security;
 
-import his.domain.ports.UserRepository;
+import his.infrastructure.persistence.repositories.UserJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,11 +17,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 @RequiredArgsConstructor
 public class AppConfig {
 
-    private final UserRepository userRepositoryPort;
+    private final UserJpaRepository userJpaRepository;
 
     @Bean // Para que Spring lo pueda inyectar
     public UserDetailsService userDetailsService() {
-        return username -> userRepositoryPort.findUserByEmail(username)
+        return username -> userJpaRepository.findByEmailPaciente(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
     }
 

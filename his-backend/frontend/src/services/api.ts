@@ -1,6 +1,9 @@
 import axios from 'axios'
 
-const API_URL = 'http://localhost:8080/api'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+const AUTH_TOKEN_KEY = 'token'
+const AUTH_USER_KEY = 'user'
+const storage = window.sessionStorage
 
 const api = axios.create({
   baseURL: API_URL,
@@ -8,12 +11,51 @@ const api = axios.create({
 
 // Interceptor para agregar token a las peticiones
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = storage.getItem(AUTH_TOKEN_KEY)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status
+    const hasSession = !!storage.getItem(AUTH_TOKEN_KEY)
+
+    if (hasSession && (status === 401 || status === 403)) {
+      storage.removeItem(AUTH_TOKEN_KEY)
+      storage.removeItem(AUTH_USER_KEY)
+      // Limpia llaves legacy por compatibilidad con sesiones antiguas.
+      window.localStorage.removeItem(AUTH_TOKEN_KEY)
+      window.localStorage.removeItem(AUTH_USER_KEY)
+      window.dispatchEvent(new Event('auth:unauthorized'))
+    }
+
+    return Promise.reject(error)
+  }
+)
+
+export type UserRole =
+  | 'PACIENTE'
+  | 'ADMIN'
+  | 'DOCTOR'
+  | 'ENFERMERA'
+  | 'LABORATORISTA'
+  | 'FARMACEUTICO'
+  | 'ADMINISTRATIVO'
+  | 'RECEPCION'
+
+export const HOSPITAL_STAFF_ROLES: UserRole[] = [
+  'ADMIN',
+  'DOCTOR',
+  'ENFERMERA',
+  'LABORATORISTA',
+  'FARMACEUTICO',
+  'ADMINISTRATIVO',
+  'RECEPCION',
+]
 
 export interface LoginRequest {
   email: string
@@ -31,6 +73,7 @@ export interface RegisterAdminRequest extends RegisterRequest {
   telefono: string
   direccion: string
   dpi: string
+  numeroColegiado?: string
 }
 
 export interface AuthResponse {
@@ -40,7 +83,7 @@ export interface AuthResponse {
     email: string
     firstName: string
     lastName: string
-    role: 'USER' | 'ADMIN'
+    role: UserRole
   }
 }
 
@@ -56,6 +99,10 @@ export const authAPI = {
   register: (data: RegisterRequest) =>
     api.post<AuthResponse>('/auth/register', data),
 
+  registerPersonal: (data: RegisterAdminRequest) =>
+    api.post<AuthResponse>('/auth/register/personal', data),
+
+  // Endpoint legacy mantenido por compatibilidad.
   registerAdmin: (data: RegisterAdminRequest) =>
     api.post<AuthResponse>('/auth/register/admin', data),
 

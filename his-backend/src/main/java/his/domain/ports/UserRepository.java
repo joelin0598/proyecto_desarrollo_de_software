@@ -1,10 +1,15 @@
 package his.domain.ports;
 
-import his.domain.UserEntity;
-import org.springframework.data.jpa.repository.JpaRepository;
+import his.domain.models.User;
 
 import java.util.Optional;
 
-public interface UserRepository extends JpaRepository<UserEntity, Long> {
-    Optional<UserEntity> findUserByEmail(String email);
+public interface UserRepository {
+    Optional<User> findByEmail(String email);
+
+    User save(User user);
+
+    Optional<User> findById(Long userId);
+
+    boolean existsByEmail(String email);
 }

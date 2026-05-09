@@ -1,19 +1,23 @@
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/context/AuthContext'
+import { useNavigate } from 'react-router-dom'
+import { getDefaultRouteForRole, isHospitalStaffRole, useAuth } from '@/context/AuthContext'
 import { useState } from 'react'
+import { authAPI } from '@/services/api'
 
 function Header() {
   const navigate = useNavigate()
-  const location = useLocation()
   const { isAuthenticated, user, logout } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
-  const handleLogout = () => {
-    logout()
-    navigate('/')
+  const handleLogout = async () => {
+    try {
+      await authAPI.logout()
+    } catch {
+      // Si el token ya expiró/revocó, igual se limpia sesión local.
+    } finally {
+      logout()
+      navigate('/')
+    }
   }
-
-  const isActive = (path: string) => location.pathname === path ? 'text-blue-600 font-semibold' : 'text-gray-700 hover:text-blue-600'
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -35,22 +39,16 @@ function Header() {
           {!isAuthenticated ? (
             <>
               <button
-                onClick={() => navigate('/')}
-                className={`transition ${isActive('/')}`}
-              >
-                Inicio
-              </button>
-              <button
                 onClick={() => navigate('/login')}
                 className="btn-primary"
               >
-                Iniciar Sesión
+                Iniciar Sesion
               </button>
               <button
-                onClick={() => navigate('/register')}
-                className="btn-outline"
+                onClick={() => navigate('/login/personal')}
+                className="text-gray-700 hover:text-blue-600 transition"
               >
-                Registrarse
+                Acceso Personal
               </button>
             </>
           ) : (
@@ -60,13 +58,13 @@ function Header() {
                 <p className="font-semibold text-gray-900">{user?.email}</p>
               </div>
               <button
-                onClick={() => navigate(user?.role === 'ADMIN' ? '/admin' : '/user')}
+                onClick={() => navigate(getDefaultRouteForRole(user?.role))}
                 className="btn-primary"
               >
-                {user?.role === 'ADMIN' ? 'Dashboard' : 'Mi Portal'}
+                {isHospitalStaffRole(user?.role) ? 'Dashboard' : 'Mi Portal'}
               </button>
               <button
-                onClick={handleLogout}
+                onClick={() => void handleLogout()}
                 className="btn-secondary"
               >
                 Cerrar Sesión
@@ -93,30 +91,21 @@ function Header() {
             <>
               <button
                 onClick={() => {
-                  navigate('/')
-                  setIsMenuOpen(false)
-                }}
-                className="block w-full text-left py-2 text-gray-700 hover:text-blue-600"
-              >
-                Inicio
-              </button>
-              <button
-                onClick={() => {
                   navigate('/login')
                   setIsMenuOpen(false)
                 }}
                 className="block w-full btn-primary text-center"
               >
-                Iniciar Sesión
+                Iniciar Sesion
               </button>
               <button
                 onClick={() => {
-                  navigate('/register')
+                  navigate('/login/personal')
                   setIsMenuOpen(false)
                 }}
-                className="block w-full btn-outline text-center"
+                className="block w-full text-left py-2 text-gray-700 hover:text-blue-600"
               >
-                Registrarse
+                Acceso Personal
               </button>
             </>
           ) : (
@@ -127,16 +116,16 @@ function Header() {
               </div>
               <button
                 onClick={() => {
-                  navigate(user?.role === 'ADMIN' ? '/admin' : '/user')
+                  navigate(getDefaultRouteForRole(user?.role))
                   setIsMenuOpen(false)
                 }}
                 className="block w-full btn-primary text-center"
               >
-                {user?.role === 'ADMIN' ? 'Dashboard' : 'Mi Portal'}
+                {isHospitalStaffRole(user?.role) ? 'Dashboard' : 'Mi Portal'}
               </button>
               <button
                 onClick={() => {
-                  handleLogout()
+                  void handleLogout()
                   setIsMenuOpen(false)
                 }}
                 className="block w-full btn-secondary text-center"
