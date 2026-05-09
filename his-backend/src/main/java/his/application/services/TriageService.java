@@ -1,94 +1,138 @@
 package his.application.services;
 
 import his.application.dto.TriageRequest;
+import his.application.dto.TriageResponse;
 import his.application.usecases.TriageUseCase;
+import his.domain.models.Patient;
+import his.domain.models.Priority;
 import his.domain.models.VitalSigns;
+import his.domain.ports.HospitalStaffRepository;
+import his.domain.ports.PatientRepository;
+import his.domain.ports.UserRepository;
 import his.domain.ports.VitalSignsRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * CU 2.0 — Orquestación de ingreso y triaje hospitalario.
+ *
+ * Flujo:
+ *  1. Resolve personalId desde email JWT → User → HospitalStaff
+ *  2. FA01: buscar paciente por DPI; si no existe, crear nuevo (sin cuenta web)
+ *  3. Construir VitalSigns con los datos del request
+ *  4. calculatePriority() en el dominio — lógica de RN04 encapsulada en VitalSigns
+ *  5. Persistir y retornar TriageResponse con prioridad real
+ */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TriageService implements TriageUseCase {
 
-    private static final int MIN_SATURACION = 50;
-    private static final int MAX_SATURACION = 100;
-    private static final double MIN_TEMPERATURA = 30.0;
-    private static final double MAX_TEMPERATURA = 45.0;
-    private static final int MIN_PRESION_SISTOLICA = 50;
-    private static final int MAX_PRESION_SISTOLICA = 300;
-    private static final int MIN_PRESION_DIASTOLICA = 30;
-    private static final int MAX_PRESION_DIASTOLICA = 200;
-    private static final int MIN_FRECUENCIA_CARDIACA = 20;
-    private static final int MAX_FRECUENCIA_CARDIACA = 250;
-    private static final double MIN_TALLA_CM = 30.0;
-    private static final double MAX_TALLA_CM = 300.0;
-    private static final double MIN_PESO_KG = 1.0;
-    private static final double MAX_PESO_KG = 500.0;
-
+    private final PatientRepository patientRepository;
     private final VitalSignsRepository vitalSignsRepository;
+    private final HospitalStaffRepository hospitalStaffRepository;
+    private final UserRepository userRepository;
 
-    @Transactional
     @Override
-    public VitalSigns execute(TriageRequest request) {
-        validateRequest(request);
+    @Transactional
+    public TriageResponse execute(TriageRequest request, String emailPersonal) {
 
+        // 1. Resolver personalId del personal autenticado que registra el triaje
+        Long personalId = resolvePersonalId(emailPersonal);
+
+        // 2. FA01 — Buscar paciente por DPI; crear si es primera visita
+        boolean pacienteNuevo = false;
+        Patient patient = patientRepository.findByDpi(request.getDpi()).orElse(null);
+
+        if (patient == null) {
+            log.info("FA01: Paciente con DPI={} no encontrado. Creando nuevo expediente.", request.getDpi());
+            patient = createWalkInPatient(request);
+            pacienteNuevo = true;
+        } else {
+            log.info("Paciente existente encontrado con DPI={}, pacienteId={}", request.getDpi(), patient.getPacienteId());
+        }
+
+        // 3. Construir y persistir los signos vitales
         VitalSigns vitalSigns = VitalSigns.builder()
-                .pacienteId(request.getPacienteId())
-                .personalId(request.getPersonalId())
-                .citaMedicaId(request.getCitaMedicaId())
+                .pacienteId(patient.getPacienteId())
+                .personalId(personalId)
+                .citaMedicaId(null)  // en triaje de urgencia no hay cita médica previa
                 .presionSistolica(request.getPresionSistolica())
                 .presionDiastolica(request.getPresionDiastolica())
                 .frecuenciaCardiaca(request.getFrecuenciaCardiaca())
                 .temperatura(request.getTemperatura())
                 .saturacionOxigeno(request.getSaturacionOxigeno())
-                .tallaCm(request.getTallaCm())
                 .pesoKg(request.getPesoKg())
+                .tallaCm(request.getTallaCm())
                 .build();
 
+        // 4. RN04 — Clasificación de prioridad: lógica en el dominio, NO en el frontend
         vitalSigns.calculatePriority();
-        return vitalSignsRepository.save(vitalSigns);
+        log.info("Prioridad asignada a pacienteId={}: {}", patient.getPacienteId(), vitalSigns.getPriority());
+
+        // 5. FA03 — Detectar emergencia extrema (código rojo)
+        boolean alertaEmergencia = vitalSigns.getPriority() == Priority.ROJO;
+        if (alertaEmergencia) {
+            log.warn("FA03: ALERTA ROJA para pacienteId={}. Signos vitales críticos.", patient.getPacienteId());
+        }
+
+        vitalSigns = vitalSignsRepository.save(vitalSigns);
+
+        return TriageResponse.builder()
+                .pacienteId(patient.getPacienteId())
+                .nombreCompleto(patient.getNombreCompleto())
+                .dpi(patient.getDpi())
+                .pacienteNuevo(pacienteNuevo)
+                .signosVitalesId(vitalSigns.getSignosVitalesId())
+                .prioridad(vitalSigns.getPriority())
+                .alertaEmergencia(alertaEmergencia)
+                .presionSistolica(vitalSigns.getPresionSistolica())
+                .presionDiastolica(vitalSigns.getPresionDiastolica())
+                .frecuenciaCardiaca(vitalSigns.getFrecuenciaCardiaca())
+                .temperatura(vitalSigns.getTemperatura())
+                .saturacionOxigeno(vitalSigns.getSaturacionOxigeno())
+                .pesoKg(vitalSigns.getPesoKg())
+                .tallaCm(vitalSigns.getTallaCm())
+                .build();
     }
 
-    private void validateRequest(TriageRequest request) {
-        if (request == null) {
-            throw new IllegalArgumentException("La solicitud de triaje es obligatoria");
-        }
-        if (request.getPacienteId() == null || request.getPacienteId() <= 0) {
-            throw new IllegalArgumentException("El pacienteId es obligatorio y debe ser mayor que cero");
-        }
-        if (request.getPersonalId() == null || request.getPersonalId() <= 0) {
-            throw new IllegalArgumentException("El personalId es obligatorio y debe ser mayor que cero");
-        }
-        if (request.getCitaMedicaId() != null && request.getCitaMedicaId() <= 0) {
-            throw new IllegalArgumentException("El citaMedicaId, cuando se envía, debe ser mayor que cero");
-        }
+    /**
+     * Resuelve el personalId del empleado hospitalario autenticado.
+     * Ruta: email → User → HospitalStaff.personalId
+     */
+    private Long resolvePersonalId(String emailPersonal) {
+        var user = userRepository.findByEmail(emailPersonal)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No se encontró el usuario autenticado con email: " + emailPersonal));
 
-        validateRange(request.getPresionSistolica(), MIN_PRESION_SISTOLICA, MAX_PRESION_SISTOLICA,
-                "La presión sistólica está fuera de rango clínico");
-        validateRange(request.getPresionDiastolica(), MIN_PRESION_DIASTOLICA, MAX_PRESION_DIASTOLICA,
-                "La presión diastólica está fuera de rango clínico");
-
-        if (request.getPresionDiastolica() >= request.getPresionSistolica()) {
-            throw new IllegalArgumentException("La presión diastólica no puede ser mayor o igual a la sistólica");
-        }
-
-        validateRange(request.getFrecuenciaCardiaca(), MIN_FRECUENCIA_CARDIACA, MAX_FRECUENCIA_CARDIACA,
-                "La frecuencia cardíaca está fuera de rango clínico");
-        validateRange(request.getSaturacionOxigeno(), MIN_SATURACION, MAX_SATURACION,
-                "La saturación de oxígeno está fuera de rango clínico");
-        validateRange(request.getTemperatura(), MIN_TEMPERATURA, MAX_TEMPERATURA,
-                "La temperatura está fuera de rango clínico");
-        validateRange(request.getTallaCm(), MIN_TALLA_CM, MAX_TALLA_CM,
-                "La talla en centímetros está fuera de rango clínico");
-        validateRange(request.getPesoKg(), MIN_PESO_KG, MAX_PESO_KG,
-                "El peso en kilogramos está fuera de rango clínico");
+        return hospitalStaffRepository.findByUsuarioId(user.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "El usuario autenticado no tiene un perfil de personal hospitalario registrado"))
+                .getPersonalId();
     }
 
-    private void validateRange(double value, double min, double max, String message) {
-        if (value < min || value > max) {
-            throw new IllegalArgumentException(message);
-        }
+    /**
+     * FA01 — Crea un nuevo paciente sin cuenta web (walk-in / primera visita).
+     */
+    private Patient createWalkInPatient(TriageRequest request) {
+        Patient newPatient = Patient.builder()
+                .usuarioId(null)   // sin cuenta web; otro CU gestiona la vinculación
+                .nombreCompleto(request.getNombreCompleto())
+                .dpi(request.getDpi())
+                .genero(request.getGenero())
+                .emailContacto(request.getEmailContacto())
+                .fechaNacimiento(request.getFechaNacimiento())
+                .direccion(request.getDireccion())
+                .telefono(request.getTelefono())
+                .contactoEmergencia(request.getContactoEmergencia())
+                .telefonoEmergencia(request.getTelefonoEmergencia())
+                .aseguradoraId(request.getAseguradoraId())
+                .polizaSeguro(request.getPolizaSeguro())
+                .build();
+
+        newPatient.validateDpiIfPresent();
+        return patientRepository.save(newPatient);
     }
 }

@@ -26,12 +26,12 @@ public class SqlVitalSignsRepository implements VitalSignsRepository {
 
         if (vitalSigns.getPacienteId() != null) {
             PatientJpaEntity pacienteRef = patientJpaRepository.getReferenceById(vitalSigns.getPacienteId());
-            entity.setPacienteId(pacienteRef);
+            entity.setPaciente(pacienteRef);
         }
 
         if (vitalSigns.getPersonalId() != null) {
             HospitalStaffJpaEntity personalRef = hospitalStaffJpaRepository.getReferenceById(vitalSigns.getPersonalId());
-            entity.setPersonalId(personalRef);
+            entity.setPersonal(personalRef);
         }
 
         VitalSignsJpaEntity savedEntity = jpaRepository.save(entity);

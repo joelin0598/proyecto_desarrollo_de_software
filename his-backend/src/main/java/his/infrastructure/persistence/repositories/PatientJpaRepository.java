@@ -8,6 +8,8 @@ import java.util.Optional;
 public interface PatientJpaRepository extends JpaRepository<PatientJpaEntity, Long> {
     Optional<PatientJpaEntity> findByUsuarioSistemaUsuarioId(Long usuarioId);
 
+    Optional<PatientJpaEntity> findByDpi(String dpi);
+
     boolean existsByDpi(String dpi);
 }
 

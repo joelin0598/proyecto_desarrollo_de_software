@@ -5,6 +5,7 @@ import his.adapters.exception.InvalidPasswordFormatException;
 import his.application.dto.AuthResponse;
 import his.application.dto.RegisterRequest;
 import his.domain.models.Patient;
+import his.domain.models.PatientGender;
 import his.domain.models.Role;
 import his.domain.models.User;
 import his.domain.ports.HospitalStaffRepository;
@@ -61,10 +62,11 @@ class AuthServiceTest {
     void register_createsPatientUser_whenRequestIsValid() {
         // Arrange
         RegisterRequest request = RegisterRequest.builder()
-                .firstName("Ana")
-                .lastName("Perez")
+                .nombreCompleto("Ana Perez")
                 .email("ana.perez@example.com")
                 .password("Abc123!")
+                .dpi("1234567890123")
+                .genero(PatientGender.FEMENINO)
                 .build();
 
         when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
@@ -102,10 +104,11 @@ class AuthServiceTest {
     void register_throwsDuplicateEmailException_whenEmailAlreadyExists() {
         // Arrange
         RegisterRequest request = RegisterRequest.builder()
-                .firstName("Ana")
-                .lastName("Perez")
+                .nombreCompleto("Ana Perez")
                 .email("ana.perez@example.com")
                 .password("Abc123!")
+                .dpi("1234567890123")
+                .genero(PatientGender.FEMENINO)
                 .build();
 
         when(userRepository.existsByEmail(request.getEmail())).thenReturn(true);
@@ -121,10 +124,11 @@ class AuthServiceTest {
     void register_throwsInvalidPasswordFormatException_whenPasswordDoesNotMeetPolicy() {
         // Arrange
         RegisterRequest request = RegisterRequest.builder()
-                .firstName("Ana")
-                .lastName("Perez")
+                .nombreCompleto("Ana Perez")
                 .email("ana.perez@example.com")
                 .password("abcdef")
+                .dpi("1234567890123")
+                .genero(PatientGender.FEMENINO)
                 .build();
 
         when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);

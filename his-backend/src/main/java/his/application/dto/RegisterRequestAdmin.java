@@ -1,5 +1,6 @@
 package his.application.dto;
 
+import his.domain.models.Role;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,13 +12,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RegisterRequestAdmin {
-    @NotBlank(message = "El nombre es obligatorio")
-    @Size(min = 2, max = 50, message = "El nombre debe tener entre 2 y 50 caracteres")
-    private String firstName;
-
-    @NotBlank(message = "El apellido es obligatorio")
-    @Size(min = 2, max = 50, message = "El apellido debe tener entre 2 y 50 caracteres")
-    private String lastName;
+    @NotBlank(message = "El nombre completo es obligatorio")
+    @Size(min = 5, max = 150, message = "El nombre completo debe tener entre 5 y 150 caracteres")
+    private String nombreCompleto;
 
     @NotBlank(message = "El email es obligatorio")
     @Email(message = "El email debe ser válido")
@@ -31,13 +28,16 @@ public class RegisterRequestAdmin {
     @Size(min = 5, max = 255, message = "La dirección debe tener entre 5 y 255 caracteres")
     private String direccion;
 
-    @NotBlank(message = "El teléfono es obligatorio")
-    @Pattern(regexp = "^[0-9]{8,15}$", message = "El teléfono debe contener solo números (8-15 dígitos)")
-    private String telefono;
+    @NotBlank(message = "El teléfono corporativo es obligatorio")
+    @Pattern(regexp = "^[0-9]{8,15}$", message = "El teléfono corporativo debe contener solo números (8-15 dígitos)")
+    private String telefonoCorporativo;
 
-    @NotBlank(message = "El DPI es obligatorio")
-    @Pattern(regexp = "^[0-9]{13}$", message = "El DPI debe contener exactamente 13 dígitos")
-    private String dpi;
+    private Long especialidadId;
+
+    private Long unidadAtencionId;
+
+    @NotNull(message = "El rol es obligatorio")
+    private Role rol;
 
     @Size(max = 20, message = "El número de colegiado no puede exceder 20 caracteres")
     private String numeroColegiado;

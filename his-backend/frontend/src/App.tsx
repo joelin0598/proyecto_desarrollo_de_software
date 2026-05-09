@@ -6,8 +6,10 @@ import AccessSelector from '@/pages/AccessSelector'
 import Login from '@/pages/Login'
 import StaffLogin from '@/pages/StaffLogin'
 import Register from '@/pages/Register'
+import StaffRegister from '@/pages/StaffRegister'
 import AdminDashboard from '@/pages/AdminDashboard'
 import UserPortal from '@/pages/UserPortal'
+import TriageIntake from '@/pages/TriageIntake'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PublicOnlyRoute from '@/components/PublicOnlyRoute'
 import { HOSPITAL_STAFF_ROLES } from '@/services/api'
@@ -53,7 +55,11 @@ function App() {
           />
           <Route
             path="/register/personal"
-            element={<Navigate to="/login/personal" replace />}
+            element={
+              <PublicOnlyRoute>
+                <StaffRegister />
+              </PublicOnlyRoute>
+            }
           />
 
           {/* Protected Routes */}
@@ -71,6 +77,15 @@ function App() {
             element={
               <ProtectedRoute requiredRoles={['PACIENTE']}>
                 <UserPortal />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/triage"
+            element={
+              <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+                <TriageIntake />
               </ProtectedRoute>
             }
           />

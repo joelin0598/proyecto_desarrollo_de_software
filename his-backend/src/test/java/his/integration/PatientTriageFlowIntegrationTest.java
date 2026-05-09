@@ -1,65 +1,82 @@
 package his.integration;
 
 import his.application.dto.AuthResponse;
+import his.application.dto.RegisterRequestAdmin;
 import his.application.dto.RegisterRequest;
 import his.application.dto.TriageRequest;
+import his.application.dto.TriageResponse;
+import his.domain.models.PatientGender;
+import his.domain.models.Role;
 import his.application.services.AuthService;
 import his.application.services.TriageService;
 import his.domain.models.Priority;
-import his.domain.models.VitalSigns;
-import his.infrastructure.persistence.entities.PatientJpaEntity;
-import his.infrastructure.persistence.entities.VitalSignsJpaEntity;
+import his.infrastructure.persistence.entities.HospitalStaffJpaEntity;
+import his.infrastructure.persistence.repositories.HospitalStaffJpaRepository;
 import his.infrastructure.persistence.repositories.PatientJpaRepository;
 import his.infrastructure.persistence.repositories.VitalSignsJpaRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@ActiveProfiles("test")
+@Transactional
 class PatientTriageFlowIntegrationTest {
 
-    @Autowired
-    private AuthService authService;
-
-    @Autowired
-    private TriageService triageService;
-
-    @Autowired
-    private PatientJpaRepository patientJpaRepository;
-
-    @Autowired
-    private VitalSignsJpaRepository vitalSignsJpaRepository;
+    @Autowired private AuthService authService;
+    @Autowired private TriageService triageService;
+    @Autowired private PatientJpaRepository patientJpaRepository;
+    @Autowired private HospitalStaffJpaRepository hospitalStaffJpaRepository;
+    @Autowired private VitalSignsJpaRepository vitalSignsJpaRepository;
 
     @Test
     void registerPatientAndCreateTriage_persistsExpectedData() {
-        // Arrange
+        // Arrange: registrar paciente web y personal hospitalario
         RegisterRequest registerRequest = RegisterRequest.builder()
-                .firstName("Carlos")
-                .lastName("Lopez")
+                .nombreCompleto("Carlos Lopez")
                 .email("carlos.lopez@example.com")
                 .password("Segura1!")
+                .dpi("1234567890123")
+                .genero(PatientGender.MASCULINO)
                 .build();
 
-        // Act
+        RegisterRequestAdmin registerPersonalRequest = RegisterRequestAdmin.builder()
+                .nombreCompleto("Nora Enfermera")
+                .email("nora.enfermera@example.com")
+                .password("Segura1!")
+                .direccion("Zona 1")
+                .telefonoCorporativo("50212345678")
+                .rol(Role.ENFERMERA)
+                .numeroColegiado("COL-123")
+                .build();
+
         AuthResponse authResponse = authService.register(registerRequest);
+        AuthResponse personalResponse = authService.registerPersonal(registerPersonalRequest);
 
-        assertNotNull(authResponse);
         assertNotNull(authResponse.getToken());
-        assertNotNull(authResponse.getUser());
-        assertNotNull(authResponse.getUser().getId());
+        assertNotNull(personalResponse.getUser().getId());
 
-        PatientJpaEntity patient = patientJpaRepository
-                .findByUsuarioSistemaUsuarioId(authResponse.getUser().getId())
-                .orElseThrow(() -> new IllegalStateException("No se encontró el paciente creado en registro"));
+        // El personal se identifica por su email (extraído del JWT en prod; pasado directo aquí)
+        String emailPersonal = "nora.enfermera@example.com";
 
+        HospitalStaffJpaEntity personal = hospitalStaffJpaRepository
+                .findByUsuarioSistemaUsuarioId(personalResponse.getUser().getId())
+                .orElseThrow(() -> new IllegalStateException("No se encontró el personal hospitalario"));
+
+        // Act: triaje del paciente ya registrado (encontrado por DPI → FA01 = existente)
         TriageRequest triageRequest = TriageRequest.builder()
-                .pacienteId(patient.getPacienteId())
-                .personalId(200L)
-                .citaMedicaId(300L)
+                .nombreCompleto("Carlos Lopez")
+                .dpi("1234567890123")             // mismo DPI del registro web → paciente existente
+                .genero(PatientGender.MASCULINO)
+                .contactoEmergencia("Maria Lopez")
+                .telefonoEmergencia("55551234")
                 .presionSistolica(118)
                 .presionDiastolica(76)
                 .frecuenciaCardiaca(82)
@@ -69,24 +86,18 @@ class PatientTriageFlowIntegrationTest {
                 .pesoKg(72)
                 .build();
 
-        VitalSigns triage = triageService.execute(triageRequest);
+        TriageResponse triage = triageService.execute(triageRequest, emailPersonal);
 
         // Assert
         assertNotNull(triage.getSignosVitalesId());
-        assertEquals(patient.getPacienteId(), triage.getPacienteId());
-        assertEquals(200L, triage.getPersonalId());
-        assertEquals(300L, triage.getCitaMedicaId());
-        assertEquals(Priority.NARANJA, triage.getPriority());
-
-        VitalSignsJpaEntity persisted = vitalSignsJpaRepository.findById(triage.getSignosVitalesId())
-                .orElseThrow(() -> new IllegalStateException("No se encontró el triaje persistido"));
-
-        assertEquals(patient.getPacienteId(), persisted.getPacienteId());
-        assertEquals(200L, persisted.getPersonalId());
-        assertEquals(Priority.NARANJA, persisted.getPriority());
+        assertFalse(triage.isPacienteNuevo(), "El paciente ya existe (registrado vía web) → FA01 reutiliza expediente");
+        assertEquals("1234567890123", triage.getDpi());
+        assertEquals(Priority.NARANJA, triage.getPrioridad());
+        assertFalse(triage.isAlertaEmergencia());
+        assertEquals(personal.getPersonalId(),
+                vitalSignsJpaRepository.findById(triage.getSignosVitalesId())
+                        .orElseThrow().getPersonal().getPersonalId());
         assertTrue(patientJpaRepository.count() >= 1);
         assertTrue(vitalSignsJpaRepository.count() >= 1);
     }
 }
-
-

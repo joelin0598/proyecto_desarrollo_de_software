@@ -47,6 +47,8 @@ export type UserRole =
   | 'ADMINISTRATIVO'
   | 'RECEPCION'
 
+export type PatientGender = 'MASCULINO' | 'FEMENINO' | 'NO_ESPECIFICA'
+
 export const HOSPITAL_STAFF_ROLES: UserRole[] = [
   'ADMIN',
   'DOCTOR',
@@ -63,16 +65,38 @@ export interface LoginRequest {
 }
 
 export interface RegisterRequest {
-  firstName: string
-  lastName: string
+  nombreCompleto: string
   email: string
   password: string
+  dpi: string
+  genero: PatientGender
+  fechaNacimiento?: string
+  direccion?: string
+  telefono?: string
+  contactoEmergencia?: string
+  telefonoEmergencia?: string
+  aseguradoraId?: number
 }
 
-export interface RegisterAdminRequest extends RegisterRequest {
-  telefono: string
+export interface PatientGenderOption {
+  code: PatientGender
+  label: string
+}
+
+export interface InsuranceOption {
+  id: number
+  nombre: string
+}
+
+export interface RegisterAdminRequest {
+  nombreCompleto: string
+  email: string
+  password: string
   direccion: string
-  dpi: string
+  telefonoCorporativo: string
+  especialidadId?: number
+  unidadAtencionId?: number
+  rol: UserRole
   numeroColegiado?: string
 }
 
@@ -108,6 +132,70 @@ export const authAPI = {
 
   logout: () =>
     api.post('/auth/logout'),
+}
+
+export const catalogAPI = {
+  patientGenders: () =>
+    api.get<PatientGenderOption[]>('/catalogs/patient-genders'),
+
+  insurances: () =>
+    api.get<InsuranceOption[]>('/catalogs/insurances'),
+}
+
+export type TriagePriority = 'ROJO' | 'NARANJA' | 'AMARILLO' | 'VERDE'
+
+/**
+ * CU 2.0 — Solicitud unificada de ingreso y triaje.
+ * Combina ficha del paciente + signos vitales.
+ * El personalId lo resuelve el backend desde el JWT.
+ */
+export interface TriageRequest {
+  // Datos personales
+  nombreCompleto: string
+  dpi: string
+  fechaNacimiento?: string       // ISO date YYYY-MM-DD
+  genero: PatientGender
+  emailContacto?: string
+  telefono?: string
+  direccion?: string
+  // Contacto emergencia
+  contactoEmergencia: string
+  telefonoEmergencia: string
+  // Seguro (opcional)
+  aseguradoraId?: number
+  polizaSeguro?: string
+  // Signos vitales
+  presionSistolica: number
+  presionDiastolica: number
+  frecuenciaCardiaca: number
+  temperatura: number
+  saturacionOxigeno: number
+  pesoKg: number
+  tallaCm: number
+}
+
+/** Respuesta del backend: el pacienteId creado/encontrado + prioridad calculada en dominio. */
+export interface TriageResponse {
+  pacienteId: number
+  nombreCompleto: string
+  dpi: string
+  pacienteNuevo: boolean
+  signosVitalesId: number
+  prioridad: TriagePriority      // RN04 — calculada en dominio, nunca en frontend
+  alertaEmergencia: boolean      // FA03 — true si prioridad es ROJO
+  presionSistolica: number
+  presionDiastolica: number
+  frecuenciaCardiaca: number
+  temperatura: number
+  saturacionOxigeno: number
+  pesoKg: number
+  tallaCm: number
+}
+
+export const triageAPI = {
+  /** POST /api/triage — CU 2.0: registro de paciente + signos vitales + prioridad */
+  create: (data: TriageRequest) =>
+    api.post<TriageResponse>('/triage', data),
 }
 
 export default api

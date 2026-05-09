@@ -60,6 +60,9 @@ public class AuthService implements AuthUseCase {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new DuplicateEmailException("El correo electrónico ya está en uso");
         }
+        if (patientRepository.existsByDpi(request.getDpi())) {
+            throw new DuplicateEmailException("El DPI del paciente ya está en uso");
+        }
 
         validatePassword(request.getPassword());
 
@@ -74,7 +77,15 @@ public class AuthService implements AuthUseCase {
 
         Patient patient = Patient.builder()
                 .usuarioId(user.getUserId())
-                .nombreCompleto(buildFullName(request.getFirstName(), request.getLastName()))
+                .nombreCompleto(request.getNombreCompleto())
+                .dpi(request.getDpi())
+                .genero(request.getGenero())
+                .fechaNacimiento(request.getFechaNacimiento())
+                .direccion(request.getDireccion())
+                .telefono(request.getTelefono())
+                .contactoEmergencia(request.getContactoEmergencia())
+                .telefonoEmergencia(request.getTelefonoEmergencia())
+                .aseguradoraId(request.getAseguradoraId())
                 .build();
         patient.validateDpiIfPresent();
         patient = patientRepository.save(patient);
@@ -107,18 +118,20 @@ public class AuthService implements AuthUseCase {
                 .active(true)
                 .email(requestAdmin.getEmail())
                 .password(passwordEncoder.encode(requestAdmin.getPassword()))
-                .role(Role.ADMIN)
+                .role(requestAdmin.getRol())
                 .build();
 
         user = userRepository.save(user);
 
         HospitalStaff staff = HospitalStaff.builder()
                 .usuarioId(user.getUserId())
-                .rol(Role.ADMIN)
-                .nombreCompleto(buildFullName(requestAdmin.getFirstName(), requestAdmin.getLastName()))
+                .rol(requestAdmin.getRol())
+                .especialidadId(requestAdmin.getEspecialidadId())
+                .unidadAtencionId(requestAdmin.getUnidadAtencionId())
+                .nombreCompleto(requestAdmin.getNombreCompleto())
                 .direccion(requestAdmin.getDireccion())
                 .numeroColegiado(numeroColegiado)
-                .telefonoCorporativo(requestAdmin.getTelefono())
+                .telefonoCorporativo(requestAdmin.getTelefonoCorporativo())
                 .build();
         staff.validateNumeroColegiadoIfPresent();
         staff = hospitalStaffRepository.save(staff);
@@ -184,10 +197,6 @@ public class AuthService implements AuthUseCase {
                 .build();
     }
 
-    private String buildFullName(String firstName, String lastName) {
-        return (firstName + " " + lastName).trim();
-    }
-
     private String[] resolveNames(Optional<Patient> patient, Optional<HospitalStaff> staff) {
         String fullName = patient.map(Patient::getNombreCompleto)
                 .or(() -> staff.map(HospitalStaff::getNombreCompleto))
@@ -207,7 +216,7 @@ public class AuthService implements AuthUseCase {
         if (requestAdmin.getNumeroColegiado() != null && !requestAdmin.getNumeroColegiado().isBlank()) {
             return requestAdmin.getNumeroColegiado();
         }
-        return requestAdmin.getDpi();
+        return null;
     }
 }
 

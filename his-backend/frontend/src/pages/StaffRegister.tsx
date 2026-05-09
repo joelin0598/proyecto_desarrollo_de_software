@@ -1,26 +1,29 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getDefaultRouteForRole, isHospitalStaffRole, useAuth } from '@/context/AuthContext'
-import { authAPI, RegisterAdminRequest } from '@/services/api'
-import Header from '@/components/Header'
+import { authAPI, HOSPITAL_STAFF_ROLES, RegisterAdminRequest, UserRole } from '@/services/api'
 
 const StaffRegister: React.FC = () => {
   const navigate = useNavigate()
   const { login } = useAuth()
-  const [formData, setFormData] = useState<RegisterAdminRequest>({
-    firstName: '',
-    lastName: '',
+  const [formData, setFormData] = useState<RegisterAdminRequest & {
+    especialidadIdInput: string
+    unidadAtencionIdInput: string
+  }>({
+    nombreCompleto: '',
     email: '',
     password: '',
     direccion: '',
-    telefono: '',
-    dpi: '',
+    telefonoCorporativo: '',
+    rol: 'ADMINISTRATIVO',
     numeroColegiado: '',
+    especialidadIdInput: '',
+    unidadAtencionIdInput: '',
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
     setError('')
@@ -32,8 +35,15 @@ const StaffRegister: React.FC = () => {
 
     try {
       const payload: RegisterAdminRequest = {
-        ...formData,
+        nombreCompleto: formData.nombreCompleto.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        direccion: formData.direccion.trim(),
+        telefonoCorporativo: formData.telefonoCorporativo.trim(),
+        rol: formData.rol as UserRole,
         numeroColegiado: formData.numeroColegiado?.trim() || undefined,
+        especialidadId: formData.especialidadIdInput ? Number(formData.especialidadIdInput) : undefined,
+        unidadAtencionId: formData.unidadAtencionIdInput ? Number(formData.unidadAtencionIdInput) : undefined,
       }
 
       const response = await authAPI.registerPersonal(payload)
@@ -54,86 +64,115 @@ const StaffRegister: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
+    <div className="h-screen bg-gray-100 overflow-hidden">
+      <div className="h-full grid grid-cols-[220px_1fr]">
+        <aside className="bg-slate-900 text-white px-5 py-6 flex flex-col justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-slate-300">HIS</p>
+            <h1 className="text-lg font-semibold mt-1">Registro de personal</h1>
+            <nav className="mt-8 space-y-2 text-sm">
+              <p className="bg-slate-800 px-3 py-2 rounded">Perfil profesional</p>
+              <p className="text-slate-300 px-3 py-2">Acceso al sistema</p>
+              <p className="text-slate-300 px-3 py-2">Datos administrativos</p>
+            </nav>
+          </div>
+          <div className="text-xs text-slate-300">
+            <p>¿Ya tienes cuenta?</p>
+            <Link to="/login/personal" className="text-sky-300 hover:text-sky-200">Iniciar sesion</Link>
+          </div>
+        </aside>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="bg-white rounded-lg shadow-2xl w-full max-w-lg p-8">
-          <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-            Registro de Personal Hospitalario
-          </h1>
-          <p className="text-center text-gray-600 mb-8">
-            Completa tus datos institucionales para crear tu cuenta
-          </p>
+        <main className="p-6 lg:p-8 flex items-center justify-center">
+          <section className="w-full max-w-5xl bg-white rounded-xl shadow-md border border-gray-100 p-6 lg:p-7">
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold text-gray-800">Crear cuenta de personal</h2>
+              <p className="text-sm text-gray-500">Registro operativo para personal_hospitalario.</p>
+            </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
                 {error}
               </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo</label>
                 <input
                   type="text"
-                  name="firstName"
-                  value={formData.firstName}
+                  name="nombreCompleto"
+                  value={formData.nombreCompleto}
                   onChange={handleChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="Ana"
+                  placeholder="Ana Gomez"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Apellido</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Rol</label>
+                <select
+                  name="rol"
+                  value={formData.rol}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                >
+                  {HOSPITAL_STAFF_ROLES.map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Numero colegiado</label>
                 <input
                   type="text"
-                  name="lastName"
-                  value={formData.lastName}
+                  name="numeroColegiado"
+                  value={formData.numeroColegiado}
                   onChange={handleChange}
-                  required
+                  maxLength={20}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="Gomez"
+                  placeholder="Opcional"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Correo institucional</label>
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                placeholder="usuario@hospital.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Direccion</label>
-              <input
-                type="text"
-                name="direccion"
-                value={formData.direccion}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                placeholder="Direccion de residencia"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Telefono</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Correo institucional</label>
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="usuario@hospital.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Contrasena</label>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="Minimo 6 caracteres"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Telefono corporativo</label>
                 <input
                   type="text"
-                  name="telefono"
-                  value={formData.telefono}
+                  name="telefonoCorporativo"
+                  value={formData.telefonoCorporativo}
                   onChange={handleChange}
                   required
                   pattern="^[0-9]{8,15}$"
@@ -143,76 +182,58 @@ const StaffRegister: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">DPI</label>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Especialidad ID</label>
+                <input
+                  type="number"
+                  min={1}
+                  name="especialidadIdInput"
+                  value={formData.especialidadIdInput}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="Opcional"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Unidad atencion ID</label>
+                <input
+                  type="number"
+                  min={1}
+                  name="unidadAtencionIdInput"
+                  value={formData.unidadAtencionIdInput}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  placeholder="Opcional"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Direccion</label>
                 <input
                   type="text"
-                  name="dpi"
-                  value={formData.dpi}
+                  name="direccion"
+                  value={formData.direccion}
                   onChange={handleChange}
                   required
-                  pattern="^[0-9]{13}$"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="13 digitos"
+                  placeholder="Direccion de residencia"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Numero de colegiado (opcional)</label>
-              <input
-                type="text"
-                name="numeroColegiado"
-                value={formData.numeroColegiado}
-                onChange={handleChange}
-                maxLength={20}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                placeholder="Si aplica a tu puesto"
-              />
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <Link to="/login" className="text-sm text-gray-500 hover:text-gray-700">Cambiar tipo de acceso</Link>
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition disabled:opacity-50"
+              >
+                {loading ? 'Registrando...' : 'Crear cuenta de personal'}
+              </button>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                placeholder="Contraseña"
-              />
-              <p className="mt-1 text-xs text-gray-500">Minimo 6 caracteres, 1 mayuscula, 1 numero y 1 simbolo.</p>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50 mt-4"
-            >
-              {loading ? 'Registrando...' : 'Crear cuenta de personal'}
-            </button>
           </form>
-
-          <div className="mt-6 text-center text-sm">
-            <p className="text-gray-600">
-              ¿Ya tienes cuenta?{' '}
-              <Link to="/login/personal" className="text-blue-600 hover:underline font-semibold">
-                Inicia sesion aqui
-              </Link>
-            </p>
-            <p className="text-xs text-gray-500 mt-2">
-              ¿Eres paciente?{' '}
-              <Link to="/login/paciente" className="text-blue-600 hover:underline font-semibold">
-                Inicia sesion aqui
-              </Link>
-            </p>
-            <p className="text-xs text-gray-500 mt-2">
-              <Link to="/login" className="text-blue-600 hover:underline font-semibold">
-                Cambiar tipo de acceso
-              </Link>
-            </p>
-          </div>
-        </div>
+          </section>
+        </main>
       </div>
     </div>
   )

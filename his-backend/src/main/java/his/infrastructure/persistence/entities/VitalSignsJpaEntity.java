@@ -25,11 +25,11 @@ public class VitalSignsJpaEntity extends BaseEntity{
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "paciente_id", nullable = false)
-    private PatientJpaEntity pacienteId;
+    private PatientJpaEntity paciente;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "personal_id", nullable = false)
-    private HospitalStaffJpaEntity personalId;
+    private HospitalStaffJpaEntity personal;
 
     @Column(name = "presion_sistolica")
     private int presionSistolica;

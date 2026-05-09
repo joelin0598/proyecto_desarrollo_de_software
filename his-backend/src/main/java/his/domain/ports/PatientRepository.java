@@ -9,6 +9,8 @@ public interface PatientRepository {
 
     Optional<Patient> findByUsuarioId(Long usuarioId);
 
+    Optional<Patient> findByDpi(String dpi);
+
     boolean existsByDpi(String dpi);
 }
 

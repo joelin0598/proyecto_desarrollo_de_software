@@ -13,15 +13,18 @@ import java.time.LocalDate;
 @NoArgsConstructor
 public class Patient {
     private Long pacienteId;
-    private Long usuarioId;
-    private Long aseguradoraId;
+    private Long usuarioId;          // nullable: pacientes de triaje presencial no tienen cuenta web
+    private Long aseguradoraId;      // nullable: seguro es opcional
+    private PatientGender genero;
     private String nombreCompleto;
     private String dpi;
     private LocalDate fechaNacimiento;
+    private String emailContacto;    // correo de contacto, no de autenticación
     private String direccion;
     private String telefono;
     private String contactoEmergencia;
     private String telefonoEmergencia;
+    private String polizaSeguro;     // número de póliza individual del paciente
 
     public void validateDpiIfPresent() {
         if (dpi == null || dpi.isBlank()) {
