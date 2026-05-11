@@ -105,7 +105,13 @@ function sanitizeIntegerInput(rawValue: string, maxDigits: number, maxValue: num
   return String(Math.min(numericValue, maxValue))
 }
 
-function getPriorityStatusChip(priority: string): { label: string; tone: 'blue' | 'emerald' | 'orange' | 'red' | 'slate' | 'yellow' } {
+function getPriorityStatusChip(
+  priority: string,
+  isVitalsStep: boolean = false,
+): { label: string; tone: 'emerald' | 'ghost' | 'orange' | 'red' | 'slate' | 'yellow' } {
+  if (!isVitalsStep || priority === 'PENDIENTE') {
+    return { label: 'En evaluación', tone: 'ghost' }
+  }
   switch (priority) {
     case 'ROJO':
       return { label: `Prioridad: ${priority}`, tone: 'red' }
@@ -115,10 +121,8 @@ function getPriorityStatusChip(priority: string): { label: string; tone: 'blue' 
       return { label: `Prioridad: ${priority}`, tone: 'yellow' }
     case 'VERDE':
       return { label: `Prioridad: ${priority}`, tone: 'emerald' }
-    case 'PENDIENTE':
-      return { label: 'Prioridad en curso de evaluacion', tone: 'slate' }
     default:
-      return { label: 'Prioridad en curso de evaluacion', tone: 'slate' }
+      return { label: 'En evaluación', tone: 'ghost' }
   }
 }
 
@@ -455,28 +459,39 @@ const TriageIntake: React.FC = () => {
                   </div>
                 </div>
                 <StatusChip
-                  label={getPriorityStatusChip(savedTriageData.prioridad).label}
-                  tone={getPriorityStatusChip(savedTriageData.prioridad).tone}
+                  label={getPriorityStatusChip(savedTriageData.prioridad, true).label}
+                  tone={getPriorityStatusChip(savedTriageData.prioridad, true).tone}
                 />
               </div>
 
               {/* Ficha del paciente */}
               <div className="space-y-4">
                 {/* IDs de registro */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-                    <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Paciente ID</p>
-                    <p className="text-xl font-bold text-blue-900">{savedTriageData.pacienteId}</p>
-                  </div>
-                  <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
-                    <p className="text-xs text-purple-600 font-semibold uppercase mb-1">Signos Vitales ID</p>
-                    <p className="text-xl font-bold text-purple-900">{savedTriageData.signosVitalesId}</p>
-                  </div>
-                  <div className="rounded-lg bg-amber-50 border border-amber-200 p-4">
-                    <p className="text-xs text-amber-600 font-semibold uppercase mb-1">Alerta Emergencia</p>
-                    <p className="text-xl font-bold text-amber-900">{savedTriageData.alertaEmergencia ? '🔴 SÍ' : '✓ No'}</p>
-                  </div>
-                </div>
+                {(() => {
+                  const prioridadColors: Record<string, { card: string; title: string; value: string }> = {
+                    ROJO:    { card: 'bg-red-50 border-red-200',       title: 'text-red-600',     value: 'text-red-900'     },
+                    NARANJA: { card: 'bg-orange-50 border-orange-200', title: 'text-orange-600',  value: 'text-orange-900'  },
+                    AMARILLO:{ card: 'bg-yellow-50 border-yellow-300', title: 'text-yellow-700',  value: 'text-yellow-900'  },
+                    VERDE:   { card: 'bg-emerald-50 border-emerald-200',title:'text-emerald-600', value: 'text-emerald-900' },
+                  }
+                  const alertaColor = prioridadColors[savedTriageData.prioridad] ?? { card: 'bg-slate-50 border-slate-200', title: 'text-slate-600', value: 'text-slate-900' }
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+                        <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Paciente ID</p>
+                        <p className="text-xl font-bold text-blue-900">{savedTriageData.pacienteId}</p>
+                      </div>
+                      <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
+                        <p className="text-xs text-purple-600 font-semibold uppercase mb-1">Signos Vitales ID</p>
+                        <p className="text-xl font-bold text-purple-900">{savedTriageData.signosVitalesId}</p>
+                      </div>
+                      <div className={`rounded-lg border p-4 ${alertaColor.card}`}>
+                        <p className={`text-xs font-semibold uppercase mb-1 ${alertaColor.title}`}>Alerta Emergencia</p>
+                        <p className={`text-xl font-bold ${alertaColor.value}`}>{savedTriageData.alertaEmergencia ? '🔴 SÍ' : '✓ No'}</p>
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Datos del paciente */}
                 <div className="rounded-lg border border-gray-200 overflow-hidden">

@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getDefaultRouteForRole, isHospitalStaffRole, useAuth } from '@/context/AuthContext'
 import { authAPI, LoginRequest } from '@/services/api'
-import Header from '@/components/Header'
+import StatusChip from '@/components/ui/StatusChip'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
@@ -44,21 +44,45 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Header />
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex">
+      <aside className="w-64 bg-blue-100/85 border-r border-blue-200 shadow-sm p-4 flex flex-col justify-between">
+        <div>
+          <div className="mb-7">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
+            <h1 className="text-xl font-bold text-slate-900 mt-1">Paciente</h1>
+            <p className="text-xs text-slate-600 mt-1">Acceso al portal</p>
+          </div>
+          <nav className="space-y-2">
+            <button type="button" className="w-full text-left px-3 py-2 rounded-lg text-sm bg-white text-blue-700 border border-blue-200 font-semibold">
+              Inicio de sesion
+            </button>
+            <button type="button" onClick={() => navigate('/register')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-white/70 text-slate-700 transition">
+              Registro de paciente
+            </button>
+            <button type="button" onClick={() => navigate('/login')} className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-white/70 text-slate-700 transition">
+              Cambiar tipo de acceso
+            </button>
+          </nav>
+        </div>
+        <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3">
+          <p className="text-xs text-slate-500">Sesion</p>
+          <p className="font-semibold text-slate-800">Portal de pacientes</p>
+        </div>
+      </aside>
 
-      <div className="flex-1 flex items-center justify-center px-4 py-8">
-        <div className="bg-white rounded-lg shadow-2xl w-full max-w-md p-8">
-          <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-            Iniciar Sesion Paciente
-          </h1>
-          <p className="text-center text-gray-600 mb-8">
-            Accede a tu portal en linea
-          </p>
+      <main className="flex-1 p-5 lg:p-6 flex items-center justify-center">
+        <section className="w-full max-w-xl bg-white rounded-xl shadow-md border border-gray-100 p-6 lg:p-8">
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Iniciar sesion paciente</h1>
+              <p className="text-sm text-slate-600 mt-1">Accede a tu informacion clinica y servicios en linea.</p>
+            </div>
+            <StatusChip label="Acceso paciente" tone="blue" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+              <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
@@ -99,7 +123,7 @@ const Login: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition disabled:opacity-50"
             >
               {loading ? 'Iniciando...' : 'Iniciar Sesión'}
             </button>
@@ -125,17 +149,17 @@ const Login: React.FC = () => {
             </p>
           </div>
 
-          <div className="mt-8 p-4 bg-gray-100 rounded-lg">
-            <p className="text-xs font-semibold text-gray-700 mb-2">Test Usuarios:</p>
-            <p className="text-xs text-gray-600">
+          <div className="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-xs font-semibold text-slate-700 mb-2">Credenciales de prueba:</p>
+            <p className="text-xs text-slate-600">
               <strong>Admin:</strong> admin@hospital.com / AdminPass123!@#
             </p>
-            <p className="text-xs text-gray-600">
+            <p className="text-xs text-slate-600">
               <strong>User:</strong> user@example.com / UserPass123!@#
             </p>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
     </div>
   )
 }

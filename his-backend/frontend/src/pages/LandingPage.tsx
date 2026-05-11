@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import Header from '@/components/Header'
-import Footer from '@/components/Footer'
+import StatusChip from '@/components/ui/StatusChip'
 
 function LandingPage() {
   const navigate = useNavigate()
@@ -50,145 +49,88 @@ function LandingPage() {
     }
   ]
 
+  const highlights = [
+    { label: 'Disponibilidad', value: '24/7', detail: 'Soporte y acceso continuo a servicios digitales.' },
+    { label: 'Seguridad', value: 'Alta', detail: 'Datos protegidos con controles de seguridad hospitalaria.' },
+    { label: 'Accesibilidad', value: 'Multi-dispositivo', detail: 'Experiencia responsive para escritorio y movil.' },
+  ]
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      <Header />
-
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
-        <div className="container-main">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold mb-4">
-              Bienvenido al Sistema de Información Hospitalario
-            </h1>
-            <p className="text-xl text-blue-100 mb-8">
-              Plataforma digital para gestionar tu salud de forma segura y remota
-            </p>
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => navigate('/login/paciente')}
-                className="btn-primary bg-white text-blue-700 hover:bg-blue-50 font-semibold"
-              >
-                Iniciar Sesion
-              </button>
-              <button
-                onClick={() => navigate('/register')}
-                className="btn-outline border-white bg-blue-800 text-white hover:bg-blue-900 font-semibold"
-              >
-                Registrarse (Paciente)
-              </button>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex">
+      <aside className="w-64 bg-blue-100/85 border-r border-blue-200 shadow-sm p-4 flex flex-col justify-between">
+        <div>
+          <div className="mb-7">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
+            <h1 className="text-xl font-bold text-slate-900 mt-1">Portal Clinico</h1>
+            <p className="text-xs text-slate-600 mt-1">Bienvenida institucional</p>
           </div>
+          <nav className="space-y-2 text-sm">
+            <button type="button" className="w-full text-left px-3 py-2 rounded-lg bg-white text-blue-700 border border-blue-200 font-semibold">Inicio</button>
+            <button type="button" onClick={() => navigate('/login')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/70 text-slate-700 transition">Acceder al sistema</button>
+            <button type="button" onClick={() => navigate('/register')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/70 text-slate-700 transition">Registro de paciente</button>
+          </nav>
         </div>
-      </section>
 
-      {/* Services Section */}
-      <section className="py-20">
-        <div className="container-main">
-          <h2 className="text-4xl font-bold text-center mb-12 text-gray-800">
-            Servicios Disponibles
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
-              <div key={service.id} className="service-card">
-                <div className={`${service.color} w-16 h-16 rounded-lg flex items-center justify-center text-3xl mb-4`}>
-                  {service.icon}
-                </div>
-                <h3 className="card-title">{service.title}</h3>
-                <p className="card-description">{service.description}</p>
-                <button
-                  onClick={() => navigate('/login/paciente')}
-                  className="mt-4 text-blue-600 hover:text-blue-800 font-semibold text-sm"
-                >
-                  Acceder como paciente →
-                </button>
-              </div>
-            ))}
-          </div>
+        <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3">
+          <p className="text-xs text-slate-500">Plataforma</p>
+          <p className="font-semibold text-slate-800">Sistema de informacion hospitalario</p>
         </div>
-      </section>
+      </aside>
 
-      {/* Info Section */}
-      <section className="bg-white py-20 border-t">
-        <div className="container-main">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 mb-2">24/7</div>
-              <h3 className="text-xl font-semibold mb-2">Disponibilidad</h3>
-              <p className="text-gray-600">Acceso a nuestros servicios disponibles las 24 horas</p>
+      <main className="flex-1 p-5 lg:p-6 overflow-auto">
+        <section className="rounded-xl border border-blue-200 bg-white shadow-sm p-6 lg:p-7 mb-5">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900">Bienvenido al Sistema de Informacion Hospitalario</h2>
+              <p className="text-slate-600 mt-2 max-w-3xl">Plataforma digital para gestionar salud, consultas y seguimiento clinico de forma segura, trazable y remota.</p>
             </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 mb-2">🔒</div>
-              <h3 className="text-xl font-semibold mb-2">Seguridad</h3>
-              <p className="text-gray-600">Tus datos están protegidos con encriptación de alta seguridad</p>
-            </div>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-blue-600 mb-2">📱</div>
-              <h3 className="text-xl font-semibold mb-2">Accesibilidad</h3>
-              <p className="text-gray-600">Diseñado para funcionar en todos tus dispositivos</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Catalog Section */}
-      <section className="py-20">
-        <div className="container-main">
-          <h2 className="text-4xl font-bold text-center mb-12 text-gray-800">
-            Especialidades y Médicos
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="service-card">
-              <h3 className="card-title">Medicina General</h3>
-              <p className="card-description mb-4">Consultas de medicina general con nuestros especialistas</p>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>📍 Disponibilidad: Lunes - Viernes</p>
-                <p>⏰ Horario: 8:00 AM - 5:00 PM</p>
-              </div>
-            </div>
-
-            <div className="service-card">
-              <h3 className="card-title">Cardiología</h3>
-              <p className="card-description mb-4">Especialista en enfermedades del corazón y sistema circulatorio</p>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>📍 Disponibilidad: Lunes - Jueves</p>
-                <p>⏰ Horario: 9:00 AM - 4:00 PM</p>
-              </div>
-            </div>
-
-            <div className="service-card">
-              <h3 className="card-title">Pediatría</h3>
-              <p className="card-description mb-4">Atención especializada para niños y adolescentes</p>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>📍 Disponibilidad: Lunes - Viernes</p>
-                <p>⏰ Horario: 7:00 AM - 3:00 PM</p>
-              </div>
-            </div>
-
-            <div className="service-card">
-              <h3 className="card-title">Odontología</h3>
-              <p className="card-description mb-4">Servicios dentales completos y preventivos</p>
-              <div className="text-sm text-gray-700 space-y-2">
-                <p>📍 Disponibilidad: Martes - Sábado</p>
-                <p>⏰ Horario: 8:00 AM - 6:00 PM</p>
-              </div>
-            </div>
+            <StatusChip label="Portal publico" tone="blue" />
           </div>
 
-          <div className="text-center mt-12">
-            <button
-              onClick={() => navigate('/login/paciente')}
-              className="btn-primary"
-            >
-              Ver todos los medicos
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button onClick={() => navigate('/login/paciente')} className="px-4 py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition">
+              Iniciar sesion paciente
+            </button>
+            <button onClick={() => navigate('/register')} className="px-4 py-2.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold transition">
+              Registrarse
+            </button>
+            <button onClick={() => navigate('/login/personal')} className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-semibold transition">
+              Acceso personal
             </button>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <Footer />
+        <section className="mb-5">
+          <h3 className="text-xl font-bold text-slate-900 mb-3">Servicios disponibles</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {services.map((service) => (
+              <article key={service.id} className="rounded-xl border border-blue-200 bg-blue-50 p-4 shadow-sm hover:shadow-md hover:bg-white transition">
+                <div className={`${service.color} w-12 h-12 rounded-lg flex items-center justify-center text-2xl mb-3`}>
+                  {service.icon}
+                </div>
+                <h4 className="text-base font-semibold text-slate-900">{service.title}</h4>
+                <p className="text-sm text-slate-600 mt-1">{service.description}</p>
+                <button onClick={() => navigate('/login/paciente')} className="mt-3 text-sm text-blue-700 hover:text-blue-800 font-semibold">
+                  Acceder como paciente
+                </button>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-xl font-bold text-slate-900 mb-3">Indicadores de plataforma</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {highlights.map((item) => (
+              <article key={item.label} className="rounded-xl border border-blue-200 bg-white p-4 shadow-sm">
+                <p className="text-xs uppercase tracking-wide text-slate-500">{item.label}</p>
+                <p className="text-2xl font-bold text-blue-700 mt-1">{item.value}</p>
+                <p className="text-sm text-slate-600 mt-2">{item.detail}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
     </div>
   )
 }

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getDefaultRouteForRole, useAuth } from '@/context/AuthContext'
 import { authAPI, catalogAPI, InsuranceOption, PatientGender, PatientGenderOption, RegisterRequest } from '@/services/api'
+import StatusChip from '@/components/ui/StatusChip'
 
 type RegisterFormData = Omit<RegisterRequest, 'genero'> & {
   genero: '' | PatientGender
@@ -97,34 +98,43 @@ const Register: React.FC = () => {
   }
 
   return (
-    <div className="h-screen bg-gray-100 overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 overflow-hidden text-slate-800">
       <div className="h-full grid grid-cols-[220px_1fr]">
-        <aside className="bg-slate-900 text-white px-5 py-6 flex flex-col justify-between">
+        <aside className="bg-blue-100/85 border-r border-blue-200 shadow-sm px-5 py-6 flex flex-col justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-300">HIS</p>
-            <h1 className="text-lg font-semibold mt-1">Registro de Pacientes</h1>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
+            <h1 className="text-xl font-bold text-slate-900 mt-1">Registro</h1>
+            <p className="text-xs text-slate-600 mt-1">Alta de pacientes</p>
             <nav className="mt-8 space-y-2 text-sm">
-              <p className="bg-slate-800 px-3 py-2 rounded">Ficha del paciente</p>
-              <p className="text-slate-300 px-3 py-2">Datos de contacto</p>
-              <p className="text-slate-300 px-3 py-2">Credenciales</p>
+              <p className="bg-white text-blue-700 border border-blue-200 font-semibold px-3 py-2 rounded-lg">Registro de paciente</p>
+              <button type="button" onClick={() => navigate('/')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/70 text-slate-700 transition">
+                Volver al inicio
+              </button>
+              <button type="button" onClick={() => navigate('/login')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/70 text-slate-700 transition">
+                Cambiar tipo de acceso
+              </button>
             </nav>
           </div>
-          <div className="text-xs text-slate-300">
-            <p>¿Ya tienes cuenta?</p>
-            <Link to="/login/paciente" className="text-sky-300 hover:text-sky-200">Iniciar sesion</Link>
+
+          <div className="rounded-lg border border-blue-200 bg-blue-50/70 p-3 text-xs">
+            <p className="text-slate-500">¿Ya tienes cuenta?</p>
+            <Link to="/login/paciente" className="text-blue-700 font-semibold hover:text-blue-800">Iniciar sesion</Link>
           </div>
         </aside>
 
         <main className="p-6 lg:p-8 flex items-center justify-center">
           <section className="w-full max-w-5xl bg-white rounded-xl shadow-md border border-gray-100 p-6 lg:p-7">
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold text-gray-800">Crear cuenta de paciente</h2>
-              <p className="text-sm text-gray-500">Formulario compacto para registro en linea.</p>
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">Crear cuenta de paciente</h2>
+                <p className="text-sm text-slate-600 mt-1">Formulario compacto para registro en linea.</p>
+              </div>
+              <StatusChip label="Pre-admision" tone="blue" />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm">
+              <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
