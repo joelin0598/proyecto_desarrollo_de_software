@@ -57,6 +57,12 @@ public class SqlPatientRepository implements PatientRepository {
     }
 
     @Override
+    public Optional<Patient> findById(Long pacienteId) {
+        return patientJpaRepository.findById(pacienteId)
+                .map(PatientMapper::toDomain);
+    }
+
+    @Override
     public boolean existsByDpi(String dpi) {
         if (dpi == null || dpi.isBlank()) {
             return false;

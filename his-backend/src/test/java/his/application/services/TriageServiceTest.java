@@ -1,5 +1,6 @@
 package his.application.services;
 
+import his.application.dto.TriageListItemsResponse;
 import his.application.dto.TriageRequest;
 import his.application.dto.TriageResponse;
 import his.domain.models.HospitalStaff;
@@ -19,11 +20,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -193,4 +195,40 @@ class TriageServiceTest {
         verify(patientRepository, never()).findByDpi(any());
         verify(vitalSignsRepository, never()).save(any());
     }
+
+    @Test
+    void listarTriajesRecientes_returnsMappedItems() {
+        VitalSigns v1 = VitalSigns.builder()
+                .signosVitalesId(100L)
+                .pacienteId(1L)
+                .presionSistolica(120)
+                .presionDiastolica(80)
+                .frecuenciaCardiaca(70)
+                .temperatura(36.8)
+                .saturacionOxigeno(98)
+                .pesoKg(65)
+                .tallaCm(170)
+                .priority(Priority.VERDE)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        when(vitalSignsRepository.findAllRecent()).thenReturn(List.of(v1));
+
+        Patient p1 = Patient.builder()
+                .pacienteId(1L)
+                .nombreCompleto("Ana Garcia")
+                .dpi("1234567890123")
+                .build();
+
+        when(patientRepository.findById(1L)).thenReturn(Optional.of(p1));
+
+        List<TriageListItemsResponse> result = triageService.listarTriajesRecientes();
+
+        assertEquals(1, result.size());
+        assertEquals(100L, result.get(0).getSignosVitalesId());
+        assertEquals("Ana Garcia", result.get(0).getNombreCompleto());
+        assertEquals(Priority.VERDE, result.get(0).getPrioridad());
+        assertFalse(result.get(0).isAlertaEmergencia());
+    }
+
 }

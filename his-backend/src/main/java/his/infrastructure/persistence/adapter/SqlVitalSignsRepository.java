@@ -12,6 +12,8 @@ import his.infrastructure.persistence.repositories.PatientJpaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Component
 @RequiredArgsConstructor
 public class SqlVitalSignsRepository implements VitalSignsRepository {
@@ -36,5 +38,12 @@ public class SqlVitalSignsRepository implements VitalSignsRepository {
 
         VitalSignsJpaEntity savedEntity = jpaRepository.save(entity);
         return mapper.toDomain(savedEntity);
+    }
+
+    @Override
+    public List<VitalSigns> findAllRecent() {
+        return jpaRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(mapper::toDomain)
+                .toList();
     }
 }

@@ -1,5 +1,6 @@
 package his.application.services;
 
+import his.application.dto.TriageListItemsResponse;
 import his.application.dto.TriageRequest;
 import his.application.dto.TriageResponse;
 import his.application.usecases.TriageUseCase;
@@ -14,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 /**
  * CU 2.0 — Orquestación de ingreso y triaje hospitalario.
@@ -98,6 +101,39 @@ public class TriageService implements TriageUseCase {
                 .build();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<TriageListItemsResponse> listarTriajesRecientes() {
+        return vitalSignsRepository.findAllRecent().stream()
+                .map(this::toListItemResponse)
+                .toList();
+    }
+
+    private TriageListItemsResponse toListItemResponse(VitalSigns vitalSigns) {
+        Patient patient = patientRepository.findById(vitalSigns.getPacienteId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No se encontro paciente para pacienteId=" + vitalSigns.getPacienteId()));
+
+        Priority prioridad = vitalSigns.getPriority();
+        boolean alertaEmergencia = prioridad == Priority.ROJO;
+
+        return TriageListItemsResponse.builder()
+                .signosVitalesId(vitalSigns.getSignosVitalesId())
+                .pacienteId(patient.getPacienteId())
+                .fechaHoraRegistro(vitalSigns.getCreatedAt())
+                .nombreCompleto(patient.getNombreCompleto())
+                .dpi(patient.getDpi())
+                .prioridad(prioridad)
+                .alertaEmergencia(alertaEmergencia)
+                .presionSistolica(vitalSigns.getPresionSistolica())
+                .presionDiastolica(vitalSigns.getPresionDiastolica())
+                .frecuenciaCardiaca(vitalSigns.getFrecuenciaCardiaca())
+                .temperatura(vitalSigns.getTemperatura())
+                .saturacionOxigeno(vitalSigns.getSaturacionOxigeno())
+                .pesoKg(vitalSigns.getPesoKg())
+                .tallaCm(vitalSigns.getTallaCm())
+                .build();
+    }
     /**
      * Resuelve el personalId del empleado hospitalario autenticado.
      * Ruta: email → User → HospitalStaff.personalId

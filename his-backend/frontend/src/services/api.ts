@@ -192,10 +192,31 @@ export interface TriageResponse {
   tallaCm: number
 }
 
+export interface TriageListItemResponse {
+  signosVitalesId: number
+  pacienteId: number
+  fechaHoraRegistro: string
+  nombreCompleto: string
+  dpi: string
+  prioridad: TriagePriority
+  alertaEmergencia: boolean
+  presionSistolica: number
+  presionDiastolica: number
+  frecuenciaCardiaca: number
+  temperatura: number
+  saturacionOxigeno: number
+  pesoKg: number
+  tallaCm: number
+}
+
 export const triageAPI = {
   /** POST /api/triage — CU 2.0: registro de paciente + signos vitales + prioridad */
   create: (data: TriageRequest) =>
     api.post<TriageResponse>('/triage', data),
+
+  /** GET /api/triage — listado cronológico de triages recientes */
+  listRecent: () =>
+    api.get<TriageListItemResponse[]>('/triage'),
 }
 
 export default api

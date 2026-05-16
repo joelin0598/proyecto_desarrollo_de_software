@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -23,6 +25,7 @@ public class VitalSigns {
     private double tallaCm;
     private double pesoKg;
     private Priority priority;
+    private LocalDateTime createdAt;
 
     /**
      * RN04 – Clasificación de Prioridad (Triaje)

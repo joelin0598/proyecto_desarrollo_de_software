@@ -1,5 +1,6 @@
 package his.adapters.rest;
 
+import his.application.dto.TriageListItemsResponse;
 import his.application.dto.TriageRequest;
 import his.application.dto.TriageResponse;
 import his.application.usecases.TriageUseCase;
@@ -16,6 +17,7 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collections;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -83,5 +85,26 @@ class TriageControllerTest {
         assertEquals(Priority.VERDE, response.getBody().getPrioridad());
         assertFalse(response.getBody().isAlertaEmergencia());
         verify(triageUseCase).execute(any(TriageRequest.class), eq("enfermera@hospital.com"));
+    }
+
+    @Test
+    void listarTriajesRecientes_returnsOk() {
+        TriageListItemsResponse item = TriageListItemsResponse.builder()
+                .signosVitalesId(99L)
+                .pacienteId(5L)
+                .nombreCompleto("Ana Garcia")
+                .dpi("1234567890123")
+                .prioridad(Priority.VERDE)
+                .alertaEmergencia(false)
+                .build();
+
+        when(triageUseCase.listarTriajesRecientes()).thenReturn(List.of(item));
+
+        ResponseEntity<List<TriageListItemsResponse>> response = triageController.listarTriajesRecientes();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertEquals(1, response.getBody().size());
+        assertEquals(99L, response.getBody().get(0).getSignosVitalesId());
+        verify(triageUseCase).listarTriajesRecientes();
     }
 }

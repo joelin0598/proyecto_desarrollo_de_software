@@ -39,6 +39,7 @@ public class VitalSignsMapper {
                 .tallaCm(entity.getTallaCm())
                 .pesoKg(entity.getPesoKg())
                 .priority(entity.getPriority())
+                .createdAt(entity.getCreatedAt())
                 .build();
 
     }

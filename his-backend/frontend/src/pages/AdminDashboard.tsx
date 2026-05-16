@@ -5,6 +5,7 @@ import { authAPI } from '@/services/api'
 import AdminSidebar from '@/components/ui/AdminSidebar'
 import StatusChip from '@/components/ui/StatusChip'
 import UseCaseModuleCard, { type UseCaseModule } from '@/components/ui/UseCaseModuleCard'
+import useSidebarPreference from '@/hooks/useSidebarPreference'
 
 const quickModules: UseCaseModule[] = [
   { title: 'Registro de Pacientes', subtitle: 'CU02', detail: 'Registro y clasificación de urgencia', route: '/triage', enabled: true, accent: 'from-cyan-500 to-cyan-600', icon: '🩺' },
@@ -22,6 +23,7 @@ const AdminDashboard: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [loading, setLoading] = React.useState(false)
+  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-dashboard', false)
 
   const handleLogout = async () => {
     setLoading(true)
@@ -37,17 +39,21 @@ const AdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex">
+    <div className="h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex overflow-hidden">
       <AdminSidebar
         email={user?.email}
         role={user?.role}
         loading={loading}
+        activeSection="dashboard"
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleCollapsed}
         onDashboard={() => navigate('/admin')}
         onTriage={() => navigate('/triage')}
+        onTriageList={() => navigate('/admin/triages')}
         onLogout={() => void handleLogout()}
       />
 
-      <main className="flex-1 p-5 lg:p-6">
+      <main className="flex-1 p-5 lg:p-6 overflow-y-auto">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Dashboard</h2>

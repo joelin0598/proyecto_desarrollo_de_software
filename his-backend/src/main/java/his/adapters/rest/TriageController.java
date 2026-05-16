@@ -1,6 +1,7 @@
 package his.adapters.rest;
 
 import his.application.dto.ErrorResponse;
+import his.application.dto.TriageListItemsResponse;
 import his.application.dto.TriageRequest;
 import his.application.dto.TriageResponse;
 import his.application.usecases.TriageUseCase;
@@ -13,11 +14,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/triage")
@@ -49,6 +48,12 @@ public class TriageController {
         }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @GetMapping
+    @PreAuthorize("hasAnyAuthority('ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
+    public ResponseEntity<List<TriageListItemsResponse>> listarTriajesRecientes() {
+        return ResponseEntity.ok(triageUseCase.listarTriajesRecientes());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
