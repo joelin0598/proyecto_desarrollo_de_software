@@ -100,6 +100,42 @@ export interface RegisterAdminRequest {
   numeroColegiado?: string
 }
 
+export interface UserMaintenanceResponse {
+  userId: number
+  email: string
+  role: UserRole
+  active: boolean
+  personalId?: number | null
+  nombreCompleto?: string | null
+  numeroColegiado?: string | null
+  telefonoCorporativo?: string | null
+  direccion?: string | null
+  especialidadId?: number | null
+  unidadAtencionId?: number | null
+}
+
+export interface UserMaintenanceCreateRequest {
+  nombreCompleto: string
+  email: string
+  password: string
+  direccion: string
+  telefonoCorporativo: string
+  especialidadId?: number
+  unidadAtencionId?: number
+  rol: UserRole
+  numeroColegiado?: string
+}
+
+export interface UserMaintenanceUpdateRequest {
+  nombreCompleto?: string
+  direccion?: string
+  telefonoCorporativo?: string
+  especialidadId?: number
+  unidadAtencionId?: number
+  rol?: UserRole
+  numeroColegiado?: string | null
+}
+
 export interface AuthResponse {
   token: string
   user: {
@@ -217,6 +253,23 @@ export const triageAPI = {
   /** GET /api/triage — listado cronológico de triages recientes */
   listRecent: () =>
     api.get<TriageListItemResponse[]>('/triage'),
+}
+
+export const userMaintenanceAPI = {
+  list: () =>
+    api.get<UserMaintenanceResponse[]>('/users/maintenance'),
+
+  create: (data: UserMaintenanceCreateRequest) =>
+    api.post<UserMaintenanceResponse>('/users/maintenance/staff', data),
+
+  update: (userId: number, data: UserMaintenanceUpdateRequest) =>
+    api.patch<UserMaintenanceResponse>(`/users/maintenance/${userId}`, data),
+
+  suspend: (userId: number) =>
+    api.patch<UserMaintenanceResponse>(`/users/maintenance/${userId}/suspend`),
+
+  delete: (userId: number) =>
+    api.delete<void>(`/users/maintenance/${userId}`),
 }
 
 export default api

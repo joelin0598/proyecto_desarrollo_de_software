@@ -1,5 +1,6 @@
 package his.infrastructure.persistence.adapter;
 
+import his.domain.models.Role;
 import his.domain.models.User;
 import his.domain.ports.UserRepository;
 import his.infrastructure.persistence.repositories.UserJpaRepository;
@@ -7,6 +8,7 @@ import his.infrastructure.persistence.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -34,8 +36,20 @@ public class SqlUserRepository implements UserRepository {
     }
 
     @Override
+    public List<User> findAllByRoleNot(Role role) {
+        return userJpaRepository.findAllByRolNot(role).stream()
+                .map(UserMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return userJpaRepository.existsByEmailPaciente(email);
+    }
+
+    @Override
+    public void deleteById(Long userId) {
+        userJpaRepository.deleteById(userId);
     }
 }
 

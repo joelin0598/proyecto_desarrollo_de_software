@@ -8,6 +8,7 @@ import StaffLogin from '@/pages/StaffLogin'
 import Register from '@/pages/Register'
 import StaffRegister from '@/pages/StaffRegister'
 import AdminDashboard from '@/pages/AdminDashboard'
+import UserMaintenance from '@/pages/UserMaintenance'
 import TriageList from '@/pages/TriageList'
 import UserPortal from '@/pages/UserPortal'
 import TriageIntake from '@/pages/TriageIntake'
@@ -69,6 +70,15 @@ function App() {
             element={
               <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+                <UserMaintenance />
               </ProtectedRoute>
             }
           />

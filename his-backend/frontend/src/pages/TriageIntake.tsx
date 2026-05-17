@@ -68,8 +68,9 @@ const steps: Array<{ key: TriageStep; title: string }> = [
   { key: 'VITALS', title: '4. Signos vitales' },
 ]
 
-const PHONE_PATTERN = /^[0-9]{8,15}$/
+const PHONE_PATTERN = /^[0-9]{8}$/
 const DPI_PATTERN = /^[0-9]{13}$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function resolvePriority(form: TriageFormData): string {
   const saturacion = Number(form.saturacionOxigeno)
@@ -130,19 +131,24 @@ function getPriorityStatusChip(
 function validateStep(formData: TriageFormData, step: TriageStep): string | null {
   if (step === 'PERSONAL') {
     if (!formData.nombreCompleto.trim()) return 'El nombre completo es obligatorio.'
+    if (/\d/.test(formData.nombreCompleto)) return 'El nombre completo no puede contener numeros.'
     if (!DPI_PATTERN.test(formData.dpi.trim())) return 'El DPI debe tener exactamente 13 digitos.'
     if (!formData.fechaNacimiento) return 'La fecha de nacimiento es obligatoria.'
+    const birthDate = new Date(formData.fechaNacimiento)
+    if (birthDate > new Date()) return 'La fecha de nacimiento no puede ser futura.'
     if (!formData.genero) return 'Debes seleccionar un genero.'
-    if (!PHONE_PATTERN.test(formData.telefono.trim())) return 'El telefono debe tener entre 8 y 15 digitos.'
+    if (!PHONE_PATTERN.test(formData.telefono.trim())) return 'El telefono debe tener exactamente 8 digitos.'
     if (!formData.email.trim()) return 'El correo electronico es obligatorio.'
+    if (!EMAIL_PATTERN.test(formData.email.trim())) return 'Ingresa un correo electronico valido.'
     if (!formData.direccion.trim()) return 'La direccion es obligatoria.'
     return null
   }
 
   if (step === 'EMERGENCY') {
     if (!formData.contactoEmergencia.trim()) return 'El nombre del contacto de emergencia es obligatorio.'
+    if (/\d/.test(formData.contactoEmergencia)) return 'El nombre del contacto no puede contener numeros.'
     if (!PHONE_PATTERN.test(formData.telefonoEmergencia.trim())) {
-      return 'El telefono de emergencia debe tener entre 8 y 15 digitos.'
+      return 'El telefono de emergencia debe tener exactamente 8 digitos.'
     }
     return null
   }
@@ -193,6 +199,7 @@ const TriageIntake: React.FC = () => {
   const submitLockRef = useRef(false)
 
   const currentStep = steps[currentStepIndex]
+  const isVitalsStep = currentStep.key === 'VITALS'
   const priority = useMemo(() => resolvePriority(formData), [formData])
   const genderLabelMap = useMemo(
     () => Object.fromEntries(genderOptions.map((option) => [option.code, option.label])) as Record<PatientGender, string>,
@@ -227,6 +234,28 @@ const TriageIntake: React.FC = () => {
     setFormData((prev) => ({ ...prev, [name]: value }))
     setError('')
   }
+
+  const handleNameChange =
+    (fieldName: 'nombreCompleto' | 'contactoEmergencia') =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const sanitized = e.target.value.replace(/\d/g, '')
+        setFormData((prev) => ({ ...prev, [fieldName]: sanitized }))
+        setError('')
+      }
+
+  const handleDpiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.replace(/\D/g, '').slice(0, 13)
+    setFormData((prev) => ({ ...prev, dpi: sanitized }))
+    setError('')
+  }
+
+  const handlePhoneChange =
+    (fieldName: 'telefono' | 'telefonoEmergencia') =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const sanitized = e.target.value.replace(/\D/g, '').slice(0, 8)
+        setFormData((prev) => ({ ...prev, [fieldName]: sanitized }))
+        setError('')
+      }
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -370,7 +399,7 @@ const TriageIntake: React.FC = () => {
     setSavedTriageData(null)
   }
 
-  const priorityChip = getPriorityStatusChip(priority)
+  const priorityChip = getPriorityStatusChip(priority, isVitalsStep)
 
   return (
     <div className="h-screen bg-gray-100 overflow-hidden flex">
@@ -449,7 +478,7 @@ const TriageIntake: React.FC = () => {
         </div>
       </aside>
 
-      <main className="flex-1 p-6 lg:p-8 flex items-center justify-center overflow-auto">
+      <main className={`flex-1 p-6 lg:p-8 flex justify-center overflow-auto ${savedTriageData ? 'items-start' : 'items-center'}`}>
         <section className="w-full max-w-4xl bg-white rounded-xl shadow-md border border-gray-100 p-6 lg:p-8">
           {/* Pantalla de confirmación después de guardar */}
           {savedTriageData && (
@@ -659,15 +688,15 @@ const TriageIntake: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo</label>
-                    <input name="nombreCompleto" value={formData.nombreCompleto} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                    <input name="nombreCompleto" value={formData.nombreCompleto} onChange={handleNameChange('nombreCompleto')} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">DPI (CUI)</label>
-                    <input name="dpi" value={formData.dpi} onChange={handleChange} pattern="^[0-9]{13}$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                    <input name="dpi" value={formData.dpi} onChange={handleDpiChange} inputMode="numeric" maxLength={13} pattern="^[0-9]{13}$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha de nacimiento</label>
-                    <input type="date" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                    <input type="date" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={handleChange} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Genero</label>
@@ -686,11 +715,11 @@ const TriageIntake: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Telefono</label>
-                    <input name="telefono" value={formData.telefono} onChange={handleChange} pattern="^[0-9]{8,15}$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                    <input name="telefono" value={formData.telefono} onChange={handlePhoneChange('telefono')} inputMode="numeric" maxLength={8} pattern="^[0-9]{8}$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Correo electronico</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
+                    <input type="email" name="email" value={formData.email} onChange={handleChange} pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600" />
                   </div>
                   <div className="md:col-span-3">
                     <label className="block text-xs font-semibold text-gray-600 mb-1">Direccion de residencia</label>
@@ -706,7 +735,7 @@ const TriageIntake: React.FC = () => {
                     <input
                       name="contactoEmergencia"
                       value={formData.contactoEmergencia}
-                      onChange={handleChange}
+                      onChange={handleNameChange('contactoEmergencia')}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>
@@ -715,8 +744,10 @@ const TriageIntake: React.FC = () => {
                     <input
                       name="telefonoEmergencia"
                       value={formData.telefonoEmergencia}
-                      onChange={handleChange}
-                      pattern="^[0-9]{8,15}$"
+                      onChange={handlePhoneChange('telefonoEmergencia')}
+                      inputMode="numeric"
+                      maxLength={8}
+                      pattern="^[0-9]{8}$"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
                     />
                   </div>

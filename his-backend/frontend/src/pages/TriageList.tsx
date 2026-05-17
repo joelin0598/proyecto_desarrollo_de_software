@@ -37,6 +37,9 @@ const TriageList: React.FC = () => {
   const [refreshing, setRefreshing] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [triages, setTriages] = React.useState<TriageListItemResponse[]>([])
+  const [searchTerm, setSearchTerm] = React.useState('')
+  const [priorityFilter, setPriorityFilter] = React.useState<'ALL' | TriagePriority>('ALL')
+  const [alertFilter, setAlertFilter] = React.useState<'ALL' | 'WITH_ALERT' | 'WITHOUT_ALERT'>('ALL')
 
   const handleLogout = async () => {
     setLoadingLogout(true)
@@ -77,13 +80,25 @@ const TriageList: React.FC = () => {
     void loadTriages()
   }, [loadTriages])
 
-  const summary = React.useMemo(() => {
-    const total = triages.length
-    const rojos = triages.filter((item) => item.prioridad === 'ROJO').length
-    const alertas = triages.filter((item) => item.alertaEmergencia).length
+  const filteredTriages = React.useMemo(() => {
+    const normalized = searchTerm.trim().toLowerCase()
 
-    return { total, rojos, alertas }
-  }, [triages])
+    return triages.filter((item) => {
+      const matchesSearch = !normalized || [
+        item.nombreCompleto,
+        item.dpi,
+        item.pacienteId.toString(),
+        item.signosVitalesId.toString(),
+      ].join(' ').toLowerCase().includes(normalized)
+
+      const matchesPriority = priorityFilter === 'ALL' || item.prioridad === priorityFilter
+      const matchesAlert = alertFilter === 'ALL'
+        || (alertFilter === 'WITH_ALERT' && item.alertaEmergencia)
+        || (alertFilter === 'WITHOUT_ALERT' && !item.alertaEmergencia)
+
+      return matchesSearch && matchesPriority && matchesAlert
+    })
+  }, [triages, searchTerm, priorityFilter, alertFilter])
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex overflow-hidden">
@@ -96,11 +111,12 @@ const TriageList: React.FC = () => {
         onToggleCollapse={toggleCollapsed}
         onDashboard={() => navigate('/admin')}
         onTriage={() => navigate('/triage')}
+        onUsers={() => navigate('/admin/users?create=1')}
         onTriageList={() => navigate('/admin/triages')}
         onLogout={() => void handleLogout()}
       />
 
-      <main className="flex-1 p-5 lg:p-6 overflow-y-auto">
+      <main className="flex-1 min-w-0 p-5 lg:p-6 overflow-y-auto">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Listado de Triajes</h2>
@@ -110,7 +126,7 @@ const TriageList: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <StatusChip label="CU02 · Trazabilidad clínica" tone="blue" />
+            <StatusChip label={`Registros: ${filteredTriages.length}`} tone="blue" />
             <button
               type="button"
               onClick={() => void loadTriages(true)}
@@ -121,32 +137,6 @@ const TriageList: React.FC = () => {
             </button>
           </div>
         </div>
-
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-          <article className="rounded-xl border border-blue-200 bg-white shadow-sm p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Total de triages</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{summary.total}</p>
-            <div className="mt-3">
-              <StatusChip label="Registros cargados" tone="blue" />
-            </div>
-          </article>
-
-          <article className="rounded-xl border border-blue-200 bg-white shadow-sm p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Prioridad roja</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{summary.rojos}</p>
-            <div className="mt-3">
-              <StatusChip label="Casos críticos" tone="red" />
-            </div>
-          </article>
-
-          <article className="rounded-xl border border-blue-200 bg-white shadow-sm p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Alertas de emergencia</p>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{summary.alertas}</p>
-            <div className="mt-3">
-              <StatusChip label="FA03 monitoreada" tone="amber" />
-            </div>
-          </article>
-        </section>
 
         <section className="rounded-xl border border-blue-200 bg-white shadow-sm p-4 lg:p-5">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-5">
@@ -159,6 +149,36 @@ const TriageList: React.FC = () => {
             <StatusChip label="Ordenados por fecha de registro" tone="slate" />
           </div>
 
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <input
+              type="search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              className="w-full px-3 py-2 rounded-lg border border-blue-200 bg-blue-50/60 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              placeholder="Filtrar por paciente, DPI o IDs"
+            />
+            <select
+              value={priorityFilter}
+              onChange={(event) => setPriorityFilter(event.target.value as 'ALL' | TriagePriority)}
+              className="w-full px-3 py-2 rounded-lg border border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="ALL">Todas las prioridades</option>
+              <option value="ROJO">ROJO</option>
+              <option value="NARANJA">NARANJA</option>
+              <option value="AMARILLO">AMARILLO</option>
+              <option value="VERDE">VERDE</option>
+            </select>
+            <select
+              value={alertFilter}
+              onChange={(event) => setAlertFilter(event.target.value as 'ALL' | 'WITH_ALERT' | 'WITHOUT_ALERT')}
+              className="w-full px-3 py-2 rounded-lg border border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="ALL">Con y sin alerta</option>
+              <option value="WITH_ALERT">Solo con alerta</option>
+              <option value="WITHOUT_ALERT">Solo sin alerta</option>
+            </select>
+          </div>
+
           {error && (
             <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {error}
@@ -169,9 +189,9 @@ const TriageList: React.FC = () => {
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 text-sm text-slate-600">
               Cargando triajes recientes...
             </div>
-          ) : triages.length === 0 ? (
+          ) : filteredTriages.length === 0 ? (
             <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 text-sm text-slate-600">
-              Aún no existen triajes registrados para mostrar en el tablero.
+              No hay triajes que coincidan con los filtros seleccionados.
             </div>
           ) : (
             <>
@@ -187,7 +207,7 @@ const TriageList: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-blue-100 bg-white">
-                    {triages.map((item) => (
+                    {filteredTriages.map((item) => (
                       <tr key={item.signosVitalesId} className="align-top hover:bg-sky-50/60 transition">
                         <td className="px-3 py-3 text-slate-700 whitespace-nowrap">{formatDateTime(item.fechaHoraRegistro)}</td>
                         <td className="px-3 py-3">
@@ -221,7 +241,7 @@ const TriageList: React.FC = () => {
               </div>
 
               <div className="xl:hidden grid grid-cols-1 lg:grid-cols-2 gap-4 text-xs">
-                {triages.map((item) => (
+                {filteredTriages.map((item) => (
                   <article key={item.signosVitalesId} className="rounded-xl border border-blue-200 bg-blue-50 p-3.5">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div>

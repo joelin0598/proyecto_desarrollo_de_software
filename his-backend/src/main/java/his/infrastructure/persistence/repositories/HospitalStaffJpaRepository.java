@@ -9,5 +9,7 @@ public interface HospitalStaffJpaRepository extends JpaRepository<HospitalStaffJ
     Optional<HospitalStaffJpaEntity> findByUsuarioSistemaUsuarioId(Long usuarioId);
 
     boolean existsByNumeroColejiado(String numeroColejiado);
+
+    void deleteByUsuarioSistemaUsuarioId(Long usuarioId);
 }
 

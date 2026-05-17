@@ -6,7 +6,10 @@ import StatusChip from '@/components/ui/StatusChip'
 
 type RegisterFormData = Omit<RegisterRequest, 'genero'> & {
   genero: '' | PatientGender
+  showPassword?: boolean
 }
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
@@ -28,6 +31,7 @@ const Register: React.FC = () => {
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     const loadCatalogs = async () => {
@@ -58,6 +62,48 @@ const Register: React.FC = () => {
     setFormData(prev => ({
       ...prev,
       [name]: name === 'aseguradoraId' ? (value ? Number(value) : undefined) : value,
+    }))
+    setError('')
+  }
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    // Remover números del nombre
+    const sanitized = value.replace(/\d/g, '')
+    setFormData(prev => ({
+      ...prev,
+      [name]: sanitized,
+    }))
+    setError('')
+  }
+
+  const handleDPIChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target
+    // Solo dígitos, máximo 13
+    const sanitized = value.replace(/\D/g, '').slice(0, 13)
+    setFormData(prev => ({
+      ...prev,
+      dpi: sanitized,
+    }))
+    setError('')
+  }
+
+  const handlePhoneChange = (fieldName: 'telefono' | 'telefonoEmergencia') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { value } = e.target
+    // Solo dígitos, exactamente 8
+    const sanitized = value.replace(/\D/g, '').slice(0, 8)
+    setFormData(prev => ({
+      ...prev,
+      [fieldName]: sanitized,
+    }))
+    setError('')
+  }
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
     }))
     setError('')
   }
@@ -146,11 +192,12 @@ const Register: React.FC = () => {
                   type="text"
                   name="nombreCompleto"
                   value={formData.nombreCompleto}
-                  onChange={handleChange}
+                  onChange={handleNameChange}
                   required
+                  placeholder="Sin números"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="Juan Perez"
                 />
+                {formData.nombreCompleto && /\d/.test(formData.nombreCompleto) && <p className="text-xs text-red-500 mt-1">El nombre no puede contener números</p>}
               </div>
 
               <div>
@@ -159,12 +206,14 @@ const Register: React.FC = () => {
                   type="text"
                   name="dpi"
                   value={formData.dpi}
-                  onChange={handleChange}
+                  onChange={handleDPIChange}
                   required
-                  pattern="^[0-9]{13}$"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  inputMode="numeric"
+                  maxLength={13}
                   placeholder="13 digitos"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                 />
+                <p className="text-xs text-gray-500 mt-1">{formData.dpi.length}/13 dígitos</p>
               </div>
 
               <div>
@@ -176,6 +225,7 @@ const Register: React.FC = () => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                 />
+                {formData.fechaNacimiento && new Date(formData.fechaNacimiento) > new Date() && <p className="text-xs text-red-500 mt-1">No puede ser una fecha futura</p>}
               </div>
 
               <div>
@@ -203,11 +253,13 @@ const Register: React.FC = () => {
                   type="tel"
                   name="telefono"
                   value={formData.telefono}
-                  onChange={handleChange}
-                  pattern="^[0-9]{8,15}$"
+                  onChange={handlePhoneChange('telefono')}
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="8 digitos"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="50212345678"
                 />
+                <p className="text-xs text-gray-500 mt-1">{formData.telefono.length}/8 dígitos</p>
               </div>
 
               <div>
@@ -216,10 +268,11 @@ const Register: React.FC = () => {
                   type="text"
                   name="contactoEmergencia"
                   value={formData.contactoEmergencia}
-                  onChange={handleChange}
+                  onChange={handleNameChange}
+                  placeholder="Sin números"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="Nombre del contacto"
                 />
+                {formData.contactoEmergencia && /\d/.test(formData.contactoEmergencia) && <p className="text-xs text-red-500 mt-1">El nombre no puede contener números</p>}
               </div>
 
               <div>
@@ -228,11 +281,13 @@ const Register: React.FC = () => {
                   type="tel"
                   name="telefonoEmergencia"
                   value={formData.telefonoEmergencia}
-                  onChange={handleChange}
-                  pattern="^[0-9]{8,15}$"
+                  onChange={handlePhoneChange('telefonoEmergencia')}
+                  inputMode="numeric"
+                  maxLength={8}
+                  placeholder="8 digitos"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="50276543210"
                 />
+                <p className="text-xs text-gray-500 mt-1">{formData.telefonoEmergencia.length}/8 dígitos</p>
               </div>
             </div>
 
@@ -271,24 +326,45 @@ const Register: React.FC = () => {
                   type="email"
                   name="email"
                   value={formData.email}
-                  onChange={handleChange}
+                  onChange={handleEmailChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                   placeholder="correo@ejemplo.com"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                 />
+                {formData.email && !EMAIL_PATTERN.test(formData.email) && <p className="text-xs text-red-500 mt-1">Correo inválido</p>}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Contrasena</label>
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
-                  placeholder="Minimo 6 caracteres"
-                />
+                <div className="relative flex items-center">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    placeholder="Minimo 6 caracteres"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 text-gray-500 hover:text-gray-700"
+                    title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                  >
+                    {showPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                        <line x1="1" y1="1" x2="23" y2="23" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
 

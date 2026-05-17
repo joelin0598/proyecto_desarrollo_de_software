@@ -8,6 +8,7 @@ import his.infrastructure.persistence.mapper.HospitalStaffMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -33,11 +34,23 @@ public class SqlHospitalStaffRepository implements HospitalStaffRepository {
     }
 
     @Override
+    public List<HospitalStaff> findAll() {
+        return hospitalStaffJpaRepository.findAll().stream()
+                .map(HospitalStaffMapper::toDomain)
+                .toList();
+    }
+
+    @Override
     public boolean existsByNumeroColegiado(String numeroColegiado) {
         if (numeroColegiado == null || numeroColegiado.isBlank()) {
             return false;
         }
         return hospitalStaffJpaRepository.existsByNumeroColejiado(numeroColegiado);
+    }
+
+    @Override
+    public void deleteByUsuarioId(Long usuarioId) {
+        hospitalStaffJpaRepository.deleteByUsuarioSistemaUsuarioId(usuarioId);
     }
 }
 

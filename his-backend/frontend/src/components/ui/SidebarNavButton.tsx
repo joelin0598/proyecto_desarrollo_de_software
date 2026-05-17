@@ -17,6 +17,7 @@ const SidebarNavButton: React.FC<SidebarNavButtonProps> = ({
 }) => {
   return (
     <button
+      type="button"
       title={label}
       onClick={onClick}
       className={`w-full px-3 py-2 rounded-lg text-sm transition flex items-center ${
