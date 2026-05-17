@@ -222,7 +222,20 @@ const UserMaintenance: React.FC = () => {
 
   const handleCreateChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = event.target
-    setCreateForm((prev) => ({ ...prev, [name]: value }))
+    let sanitized = value
+
+    if (name === 'nombreCompleto') {
+      // Solo letras, espacios, acentos y apóstrofes — sin números
+      sanitized = value.replace(/[0-9]/g, '')
+    } else if (name === 'telefonoCorporativo') {
+      // Solo dígitos, máximo 15 (backend acepta 8-15)
+      sanitized = value.replace(/\D/g, '').slice(0, 15)
+    } else if (name === 'numeroColegiado') {
+      // Máximo 20 caracteres (backend @Size(max=20))
+      sanitized = value.slice(0, 20)
+    }
+
+    setCreateForm((prev) => ({ ...prev, [name]: sanitized }))
   }
 
   const handleEditChange = (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -345,7 +358,7 @@ const UserMaintenance: React.FC = () => {
         onToggleCollapse={toggleCollapsed}
         onDashboard={() => navigate('/admin')}
         onTriage={() => navigate('/triage')}
-        onUsers={() => navigate('/admin/users?create=1')}
+        onUsers={() => navigate('/admin/users')}
         onTriageList={() => navigate('/admin/triages')}
         onLogout={() => void handleLogout()}
       />
@@ -573,16 +586,41 @@ const UserMaintenance: React.FC = () => {
             <form onSubmit={handleCreateSubmit} className="p-5 space-y-4 overflow-y-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo</label>
-                  <input type="text" name="nombreCompleto" value={createForm.nombreCompleto} onChange={handleCreateChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Nombre completo
+                    <span className={`ml-1 font-normal ${createForm.nombreCompleto.length < 5 ? 'text-red-500' : 'text-gray-400'}`}>
+                      ({createForm.nombreCompleto.length}/150)
+                    </span>
+                  </label>
+                  <input
+                    type="text" name="nombreCompleto" value={createForm.nombreCompleto}
+                    onChange={handleCreateChange} required minLength={5} maxLength={150}
+                    placeholder="Solo letras, mín. 5 caracteres"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Correo institucional</label>
-                  <input type="email" name="email" value={createForm.email} onChange={handleCreateChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <input
+                    type="email" name="email" value={createForm.email}
+                    onChange={handleCreateChange} required
+                    placeholder="usuario@hospital.com"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Contraseña inicial</label>
-                  <input type="password" name="password" value={createForm.password} onChange={handleCreateChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Contraseña inicial
+                    {createForm.password.length > 0 && createForm.password.length < 6 && (
+                      <span className="ml-1 font-normal text-red-500">(mín. 6 caracteres)</span>
+                    )}
+                  </label>
+                  <input
+                    type="password" name="password" value={createForm.password}
+                    onChange={handleCreateChange} required minLength={6}
+                    placeholder="Mínimo 6 caracteres"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Rol</label>
@@ -591,24 +629,54 @@ const UserMaintenance: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Teléfono corporativo</label>
-                  <input type="text" name="telefonoCorporativo" value={createForm.telefonoCorporativo} onChange={handleCreateChange} required pattern="^[0-9]{8,15}$" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Teléfono corporativo
+                    <span className={`ml-1 font-normal ${createForm.telefonoCorporativo.length > 0 && (createForm.telefonoCorporativo.length < 8 || createForm.telefonoCorporativo.length > 15) ? 'text-red-500' : 'text-gray-400'}`}>
+                      ({createForm.telefonoCorporativo.length}/15 · mín. 8)
+                    </span>
+                  </label>
+                  <input
+                    type="text" name="telefonoCorporativo" value={createForm.telefonoCorporativo}
+                    onChange={handleCreateChange} required
+                    inputMode="numeric" minLength={8} maxLength={15}
+                    placeholder="Solo dígitos, 8-15 números"
+                    pattern="^[0-9]{8,15}$"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Número de colegiado</label>
-                  <input type="text" name="numeroColegiado" value={createForm.numeroColegiado} onChange={handleCreateChange} maxLength={20} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Número de colegiado
+                    <span className="ml-1 font-normal text-gray-400">({createForm.numeroColegiado.length}/20)</span>
+                  </label>
+                  <input
+                    type="text" name="numeroColegiado" value={createForm.numeroColegiado}
+                    onChange={handleCreateChange} maxLength={20}
+                    placeholder="Opcional, máx. 20 caracteres"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Especialidad ID</label>
-                  <input type="number" min={1} name="especialidadId" value={createForm.especialidadId} onChange={handleCreateChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <input type="number" min={1} name="especialidadId" value={createForm.especialidadId} onChange={handleCreateChange} placeholder="Opcional" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Unidad atención ID</label>
-                  <input type="number" min={1} name="unidadAtencionId" value={createForm.unidadAtencionId} onChange={handleCreateChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <input type="number" min={1} name="unidadAtencionId" value={createForm.unidadAtencionId} onChange={handleCreateChange} placeholder="Opcional" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Dirección</label>
-                  <input type="text" name="direccion" value={createForm.direccion} onChange={handleCreateChange} required className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Dirección
+                    {createForm.direccion.length > 0 && createForm.direccion.length < 5 && (
+                      <span className="ml-1 font-normal text-red-500">(mín. 5 caracteres)</span>
+                    )}
+                  </label>
+                  <input
+                    type="text" name="direccion" value={createForm.direccion}
+                    onChange={handleCreateChange} required minLength={5} maxLength={255}
+                    placeholder="Dirección completa, mín. 5 caracteres"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
+                  />
                 </div>
               </div>
 
@@ -684,6 +752,10 @@ const UserMaintenance: React.FC = () => {
 }
 
 export default UserMaintenance
+
+
+
+
 
 
 

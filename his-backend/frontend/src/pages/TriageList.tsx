@@ -111,7 +111,7 @@ const TriageList: React.FC = () => {
         onToggleCollapse={toggleCollapsed}
         onDashboard={() => navigate('/admin')}
         onTriage={() => navigate('/triage')}
-        onUsers={() => navigate('/admin/users?create=1')}
+        onUsers={() => navigate('/admin/users')}
         onTriageList={() => navigate('/admin/triages')}
         onLogout={() => void handleLogout()}
       />
@@ -279,5 +279,4 @@ const TriageList: React.FC = () => {
 }
 
 export default TriageList
-
 
