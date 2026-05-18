@@ -1,9 +1,13 @@
 package his.application.services;
 
 import his.application.usecases.CatalogUseCase;
+import his.domain.models.HospitalStaff;
 import his.domain.models.InsuranceCatalog;
+import his.domain.models.MedicallSpecialtyCatalog;
 import his.domain.models.PatientGender;
+import his.domain.ports.HospitalStaffRepository;
 import his.domain.ports.InsuranceCatalogRepository;
+import his.domain.ports.MedicalSpecialtyCatalogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +20,8 @@ import java.util.List;
 public class CatalogService implements CatalogUseCase {
 
     private final InsuranceCatalogRepository insuranceCatalogRepository;
+    private final MedicalSpecialtyCatalogRepository specialtyCatalogRepository;
+    private final HospitalStaffRepository hospitalStaffRepository;
 
     @Override
     public List<PatientGender> getPatientGenders() {
@@ -26,6 +32,21 @@ public class CatalogService implements CatalogUseCase {
     @Transactional(readOnly = true)
     public List<InsuranceCatalog> getActiveInsurances() {
         return insuranceCatalogRepository.findAllActive();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MedicallSpecialtyCatalog> getActiveSpecialties() {
+        return specialtyCatalogRepository.findAllActive();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<HospitalStaff> getDoctorsBySpecialty(Long especialidadId) {
+        if (especialidadId == null) {
+            return hospitalStaffRepository.findAllDoctors();
+        }
+        return hospitalStaffRepository.findDoctorsByEspecialidadId(especialidadId);
     }
 }
 

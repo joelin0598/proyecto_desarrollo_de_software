@@ -259,7 +259,7 @@ const Register: React.FC = () => {
                   placeholder="8 digitos"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                 />
-                <p className="text-xs text-gray-500 mt-1">{formData.telefono.length}/8 dígitos</p>
+                <p className="text-xs text-gray-500 mt-1">{(formData.telefono ?? '').length}/8 dígitos</p>
               </div>
 
               <div>
@@ -287,7 +287,7 @@ const Register: React.FC = () => {
                   placeholder="8 digitos"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                 />
-                <p className="text-xs text-gray-500 mt-1">{formData.telefonoEmergencia.length}/8 dígitos</p>
+                <p className="text-xs text-gray-500 mt-1">{(formData.telefonoEmergencia ?? '').length}/8 dígitos</p>
               </div>
             </div>
 
@@ -387,4 +387,3 @@ const Register: React.FC = () => {
 }
 
 export default Register
-

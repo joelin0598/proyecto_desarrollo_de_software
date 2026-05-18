@@ -10,6 +10,8 @@ import StaffRegister from '@/pages/StaffRegister'
 import AdminDashboard from '@/pages/AdminDashboard'
 import UserMaintenance from '@/pages/UserMaintenance'
 import TriageList from '@/pages/TriageList'
+import AppointmentManagement from '@/pages/AppointmentManagement'
+import AppointmentQueue from '@/pages/AppointmentQueue'
 import UserPortal from '@/pages/UserPortal'
 import TriageIntake from '@/pages/TriageIntake'
 import ProtectedRoute from '@/components/ProtectedRoute'
@@ -110,6 +112,24 @@ function App() {
             }
           />
 
+          <Route
+            path="/admin/appointments"
+            element={
+              <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+                <AppointmentQueue />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/portal/appointments"
+            element={
+              <ProtectedRoute requiredRoles={['PACIENTE']}>
+                <AppointmentManagement />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/user" element={<Navigate to="/portal" replace />} />
           <Route path="/signin" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
@@ -120,4 +140,3 @@ function App() {
 }
 
 export default App
-

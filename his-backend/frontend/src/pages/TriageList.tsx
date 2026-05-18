@@ -113,6 +113,7 @@ const TriageList: React.FC = () => {
         onTriage={() => navigate('/triage')}
         onUsers={() => navigate('/admin/users')}
         onTriageList={() => navigate('/admin/triages')}
+        onAppointments={() => navigate('/admin/appointments')}
         onLogout={() => void handleLogout()}
       />
 
@@ -279,4 +280,3 @@ const TriageList: React.FC = () => {
 }
 
 export default TriageList
-

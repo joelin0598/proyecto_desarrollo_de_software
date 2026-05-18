@@ -5,7 +5,7 @@ type AdminSidebarProps = {
   email?: string
   role?: string
   loading: boolean
-  activeSection?: 'dashboard' | 'triage' | 'triage-list' | 'users'
+  activeSection?: 'dashboard' | 'triage' | 'triage-list' | 'users' | 'appointments'
   collapsed?: boolean
   showSessionDetails?: boolean
   onToggleCollapse: () => void
@@ -13,6 +13,7 @@ type AdminSidebarProps = {
   onTriage: () => void
   onUsers: () => void
   onTriageList: () => void
+  onAppointments: () => void
   onLogout: () => void
 }
 
@@ -28,6 +29,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onTriage,
   onUsers,
   onTriageList,
+  onAppointments,
   onLogout,
 }) => {
   return (
@@ -52,10 +54,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
 
         <nav className="space-y-2">
-          <SidebarNavButton label="Dashboard" icon="🏠" collapsed={collapsed} active={activeSection === 'dashboard'} onClick={onDashboard} />
-          <SidebarNavButton label="Registro y Triaje" icon="🩺" collapsed={collapsed} active={activeSection === 'triage'} onClick={onTriage} />
-          <SidebarNavButton label="Usuarios" icon="👥" collapsed={collapsed} active={activeSection === 'users'} onClick={onUsers} />
-          <SidebarNavButton label="Listar Triajes" icon="📋" collapsed={collapsed} active={activeSection === 'triage-list'} onClick={onTriageList} />
+          <SidebarNavButton label="Dashboard" icon="" collapsed={collapsed} active={activeSection === 'dashboard'} onClick={onDashboard} />
+          <SidebarNavButton label="Registro y Triaje" icon="" collapsed={collapsed} active={activeSection === 'triage'} onClick={onTriage} />
+          <SidebarNavButton label="Usuarios" icon="" collapsed={collapsed} active={activeSection === 'users'} onClick={onUsers} />
+          <SidebarNavButton label="Citas" icon="" collapsed={collapsed} active={activeSection === 'appointments'} onClick={onAppointments} />
+          <SidebarNavButton label="Listar Triajes" icon="" collapsed={collapsed} active={activeSection === 'triage-list'} onClick={onTriageList} />
         </nav>
       </div>
 
@@ -82,4 +85,3 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
 }
 
 export default AdminSidebar
-

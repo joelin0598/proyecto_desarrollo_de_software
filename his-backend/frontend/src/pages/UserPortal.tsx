@@ -15,6 +15,7 @@ const mainPortalActions = [
     detail: 'Programar consulta, seleccionar especialidad y validar cobertura de seguro.',
     bulletPoints: ['Especialidad y médico', 'Fecha y hora disponible', 'Cobertura o póliza'],
     action: 'Solicitar cita',
+    route: '/portal/appointments',
   },
   {
     title: 'Consultar resultados',
@@ -26,6 +27,7 @@ const mainPortalActions = [
     detail: 'Visualizar y descargar resultados de laboratorio cuando el proceso técnico y administrativo esté completo.',
     bulletPoints: ['Resultados publicados', 'Rangos de referencia', 'Bloqueo si hay pendiente de pago'],
     action: 'Ver resultados',
+    route: null,
   },
   {
     title: 'Recetas y recordatorios',
@@ -37,6 +39,7 @@ const mainPortalActions = [
     detail: 'Consultar prescripciones vigentes, dosis, frecuencia y recordatorios asociados al tratamiento.',
     bulletPoints: ['Medicamento y dosis', 'Frecuencia del tratamiento', 'Historial de despacho'],
     action: 'Ver recetas',
+    route: null,
   },
 ]
 
@@ -177,7 +180,12 @@ const UserPortal: React.FC = () => {
                   ))}
                 </ul>
 
-                <button className="w-full mt-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition">
+                <button
+                  type="button"
+                  onClick={() => mod.route && navigate(mod.route)}
+                  disabled={!mod.route}
+                  className="w-full mt-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {mod.action}
                 </button>
               </article>

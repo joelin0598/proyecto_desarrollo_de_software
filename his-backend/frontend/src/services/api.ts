@@ -88,6 +88,19 @@ export interface InsuranceOption {
   nombre: string
 }
 
+export interface SpecialtyOption {
+  id: number
+  nombre: string
+  descripcion?: string
+}
+
+export interface DoctorOption {
+  personalId: number
+  nombreCompleto: string
+  especialidadId?: number
+  numeroColegiado?: string
+}
+
 export interface RegisterAdminRequest {
   nombreCompleto: string
   email: string
@@ -136,6 +149,49 @@ export interface UserMaintenanceUpdateRequest {
   numeroColegiado?: string | null
 }
 
+export type PaymentOption = 'TARJETA' | 'SEGURO'
+export type AdministrativeAppointmentStatus = 'PAGO_VALIDADO' | 'PAGO_PENDIENTE'
+export type AppointmentStatus = 'PROGRAMADA' | 'CANCELADA' | 'ATENDIDA'
+
+export interface ScheduleAppointmentRequest {
+  pacienteId?: number
+  dpiPaciente?: string
+  medicoPersonalId: number
+  especialidadId?: number
+  fechaCita: string
+  horaCita: string
+  motivoConsulta: string
+  metodoPago: PaymentOption
+  bancoTarjeta?: string
+  numeroTarjeta?: string
+  fechaVencimientoTarjeta?: string
+  nombreTitularTarjeta?: string
+  cvc?: string
+  aseguradoraId?: number
+  numeroPoliza?: string
+}
+
+export interface ScheduleAppointmentResponse {
+  citaMedicaId: number
+  pacienteId: number
+  pacienteNombre?: string
+  pacienteIdentificacion?: string
+  medicoPersonalId: number
+  medicoNombre?: string
+  especialidadId?: number
+  especialidadNombre?: string
+  fechaCita: string
+  horaCita: string
+  motivoConsulta: string
+  metodoPago: PaymentOption
+  costoConsulta: number
+  estadoCita: AppointmentStatus
+  estadoAdministrativo: AdministrativeAppointmentStatus
+  pagoValidado: boolean
+  transaccionId?: string
+  mensajeValidacion: string
+}
+
 export interface AuthResponse {
   token: string
   user: {
@@ -176,6 +232,14 @@ export const catalogAPI = {
 
   insurances: () =>
     api.get<InsuranceOption[]>('/catalogs/insurances'),
+
+  specialties: () =>
+    api.get<SpecialtyOption[]>('/catalogs/specialties'),
+
+  doctorsBySpecialty: (especialidadId?: number) =>
+    api.get<DoctorOption[]>('/catalogs/doctors', {
+      params: especialidadId ? { especialidadId } : undefined,
+    }),
 }
 
 export type TriagePriority = 'ROJO' | 'NARANJA' | 'AMARILLO' | 'VERDE'
@@ -270,6 +334,14 @@ export const userMaintenanceAPI = {
 
   delete: (userId: number) =>
     api.delete<void>(`/users/maintenance/${userId}`),
+}
+
+export const appointmentAPI = {
+  schedule: (data: ScheduleAppointmentRequest) =>
+    api.post<ScheduleAppointmentResponse>('/appointments', data),
+
+  list: () =>
+    api.get<ScheduleAppointmentResponse[]>('/appointments'),
 }
 
 export default api

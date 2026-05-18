@@ -1,6 +1,8 @@
-package his.domain.models;
+package his.application.dto;
 
-
+import his.domain.models.AdministrativeAppointmentStatus;
+import his.domain.models.PaymentOption;
+import his.domain.models.StatusAppointment;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -13,11 +15,15 @@ import java.time.LocalTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class MedicalAppointment {
+public class ScheduleAppointmentResponse {
     private Long citaMedicaId;
     private Long pacienteId;
-    private Long personalId;
+    private String pacienteNombre;
+    private String pacienteIdentificacion;
+    private Long medicoPersonalId;
+    private String medicoNombre;
     private Long especialidadId;
+    private String especialidadNombre;
     private LocalDate fechaCita;
     private LocalTime horaCita;
     private String motivoConsulta;
@@ -25,5 +31,9 @@ public class MedicalAppointment {
     private Double costoConsulta;
     private StatusAppointment estadoCita;
     private AdministrativeAppointmentStatus estadoAdministrativo;
-    private String observacionAdministrativa;
+    private boolean pagoValidado;
+    private String transaccionId;
+    private String mensajeValidacion;
 }
+
+

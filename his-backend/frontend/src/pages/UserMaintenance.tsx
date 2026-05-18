@@ -360,6 +360,7 @@ const UserMaintenance: React.FC = () => {
         onTriage={() => navigate('/triage')}
         onUsers={() => navigate('/admin/users')}
         onTriageList={() => navigate('/admin/triages')}
+        onAppointments={() => navigate('/admin/appointments')}
         onLogout={() => void handleLogout()}
       />
 
@@ -752,7 +753,6 @@ const UserMaintenance: React.FC = () => {
 }
 
 export default UserMaintenance
-
 
 
 

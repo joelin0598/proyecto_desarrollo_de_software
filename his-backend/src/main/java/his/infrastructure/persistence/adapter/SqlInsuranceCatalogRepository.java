@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -22,5 +23,11 @@ public class SqlInsuranceCatalogRepository implements InsuranceCatalogRepository
                 .map(InsuranceCatalogMapper::toDomain)
                 .toList();
     }
-}
 
+    @Override
+    public Optional<InsuranceCatalog> findById(Long aseguradoraId) {
+        return insuranceCatalogJpaRepository.findById(aseguradoraId)
+                .filter(entity -> Boolean.TRUE.equals(entity.getIsActive()))
+                .map(InsuranceCatalogMapper::toDomain);
+    }
+}
