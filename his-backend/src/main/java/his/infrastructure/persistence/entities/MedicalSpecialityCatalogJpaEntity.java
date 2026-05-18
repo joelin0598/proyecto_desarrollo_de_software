@@ -10,7 +10,7 @@ import lombok.*;
 @Entity
 @Table(name = "especialidad_medica")
 @EqualsAndHashCode(callSuper = true)
-public class MedicalSpecialtyCatalogJpaEntity extends BaseEntity {
+public class MedicalSpecialityCatalogJpaEntity extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

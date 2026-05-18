@@ -5,18 +5,13 @@ import his.application.dto.ScheduleAppointmentResponse;
 import his.application.usecases.AppointmentUseCase;
 import his.domain.models.AdministrativeAppointmentStatus;
 import his.domain.models.HospitalStaff;
-import his.domain.models.MedicallSpecialtyCatalog;
+import his.domain.models.MedicalSpecialityCatalog;
 import his.domain.models.MedicalAppointment;
 import his.domain.models.Patient;
 import his.domain.models.PaymentOption;
 import his.domain.models.Role;
 import his.domain.models.StatusAppointment;
-import his.domain.ports.HospitalStaffRepository;
-import his.domain.ports.InsuranceCatalogRepository;
-import his.domain.ports.MedicalSpecialtyCatalogRepository;
-import his.domain.ports.MedicalAppointmentRepository;
-import his.domain.ports.PatientRepository;
-import his.domain.ports.UserRepository;
+import his.domain.ports.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -37,7 +32,7 @@ public class AppointmentService implements AppointmentUseCase {
     private final MedicalAppointmentRepository medicalAppointmentRepository;
     private final PatientRepository patientRepository;
     private final HospitalStaffRepository hospitalStaffRepository;
-    private final MedicalSpecialtyCatalogRepository specialtyCatalogRepository;
+    private final MedicalSpecialityRepository specialtyCatalogRepository;
     private final InsuranceCatalogRepository insuranceCatalogRepository;
     private final UserRepository userRepository;
 
@@ -235,7 +230,7 @@ public class AppointmentService implements AppointmentUseCase {
         String specialtyName = null;
         if (resolvedSpecialtyId != null) {
             specialtyName = specialtyCatalogRepository.findById(resolvedSpecialtyId)
-                    .map(MedicallSpecialtyCatalog::getNombre)
+                    .map(MedicalSpecialityCatalog::getNombre)
                     .orElse(null);
         }
 

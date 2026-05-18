@@ -10,11 +10,7 @@ import his.domain.models.PaymentOption;
 import his.domain.models.Role;
 import his.domain.models.StatusAppointment;
 import his.domain.models.User;
-import his.domain.ports.HospitalStaffRepository;
-import his.domain.ports.InsuranceCatalogRepository;
-import his.domain.ports.MedicalAppointmentRepository;
-import his.domain.ports.PatientRepository;
-import his.domain.ports.UserRepository;
+import his.domain.ports.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,6 +37,7 @@ class AppointmentServiceTest {
     @Mock private MedicalAppointmentRepository medicalAppointmentRepository;
     @Mock private PatientRepository patientRepository;
     @Mock private HospitalStaffRepository hospitalStaffRepository;
+    @Mock private MedicalSpecialityRepository specialtyCatalogRepository;
     @Mock private InsuranceCatalogRepository insuranceCatalogRepository;
     @Mock private UserRepository userRepository;
 
@@ -52,6 +49,7 @@ class AppointmentServiceTest {
                 medicalAppointmentRepository,
                 patientRepository,
                 hospitalStaffRepository,
+                specialtyCatalogRepository,
                 insuranceCatalogRepository,
                 userRepository
         );
@@ -63,6 +61,7 @@ class AppointmentServiceTest {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(User.builder().userId(1L).role(Role.RECEPCION).build()));
         when(patientRepository.findById(20L)).thenReturn(Optional.of(Patient.builder().pacienteId(20L).dpi("1234567890123").build()));
         when(hospitalStaffRepository.findById(30L)).thenReturn(Optional.of(HospitalStaff.builder().personalId(30L).rol(Role.DOCTOR).build()));
+        when(specialtyCatalogRepository.findById(5L)).thenReturn(Optional.empty());
         when(medicalAppointmentRepository.existsByPersonalIdAndDateTime(30L, LocalDate.now().plusDays(2), LocalTime.of(8, 0)))
                 .thenReturn(false);
 
