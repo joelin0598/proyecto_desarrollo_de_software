@@ -8,22 +8,22 @@ import UseCaseModuleCard, { type UseCaseModule } from '@/components/ui/UseCaseMo
 import useSidebarPreference from '@/hooks/useSidebarPreference'
 
 const quickModules: UseCaseModule[] = [
-  { title: 'Registro de Pacientes', subtitle: 'CU02', detail: 'Registro y clasificación de urgencia', route: '/triage', enabled: true, accent: 'from-cyan-500 to-cyan-600', icon: '' },
-  { title: 'Gestión de Citas', subtitle: 'CU04', detail: 'Programación y validación administrativa', route: '/admin/appointments', enabled: true, accent: 'from-sky-500 to-sky-600', icon: '' },
-  { title: 'Gestión de Citas', subtitle: 'CU05', detail: 'Programación y solvencia administrativa', route: null, enabled: false, accent: 'from-blue-500 to-blue-600', icon: '' },
-  { title: 'Mantenimiento de Usuarios', subtitle: 'CU03', detail: 'Altas, edición, suspensión y eliminación', route: '/admin/users', enabled: true, accent: 'from-indigo-500 to-indigo-600', icon: '' },
-  { title: 'Atención Médica', subtitle: 'CU06', detail: 'Asignación clínica y cierre de consulta', route: null, enabled: false, accent: 'from-emerald-500 to-emerald-600', icon: '‍⚕️' },
-  { title: 'Laboratorio', subtitle: 'CU07', detail: 'Muestras y resultados', route: null, enabled: false, accent: 'from-violet-500 to-violet-600', icon: '' },
-  { title: 'Farmacia', subtitle: 'CU08', detail: 'Despacho y recordatorios', route: null, enabled: false, accent: 'from-amber-500 to-amber-600', icon: '' },
-  { title: 'Reportes de Eficiencia', subtitle: 'CU09', detail: 'Indicadores operativos y exportación', route: null, enabled: false, accent: 'from-fuchsia-500 to-fuchsia-600', icon: '' },
-  { title: 'Asistencia Biométrica', subtitle: 'CU10', detail: 'Control de jornada del personal', route: null, enabled: false, accent: 'from-teal-500 to-teal-600', icon: '️' },
+  { title: 'Registro de Pacientes', subtitle: 'CU02', detail: 'Registro y clasificación de urgencia', route: '/triage', enabled: true, accent: 'from-cyan-500 to-cyan-600', icon: '🩺' },
+  { title: 'Gestión de Citas', subtitle: 'CU04', detail: 'Programación y validación administrativa', route: '/admin/appointments', enabled: true, accent: 'from-sky-500 to-sky-600', icon: '📅' },
+  { title: 'Gestión de Citas', subtitle: 'CU05', detail: 'Programación y solvencia administrativa', route: null, enabled: false, accent: 'from-blue-500 to-blue-600', icon: '💳' },
+  { title: 'Mantenimiento de Usuarios', subtitle: 'CU03', detail: 'Altas, edición, suspensión y eliminación', route: '/admin/users', enabled: true, accent: 'from-indigo-500 to-indigo-600', icon: '👥' },
+  { title: 'Atención Médica', subtitle: 'CU06', detail: 'Asignación clínica y cierre de consulta', route: null, enabled: false, accent: 'from-emerald-500 to-emerald-600', icon: '⚕️' },
+  { title: 'Laboratorio', subtitle: 'CU07', detail: 'Muestras y resultados', route: null, enabled: false, accent: 'from-violet-500 to-violet-600', icon: '🧪' },
+  { title: 'Farmacia', subtitle: 'CU08', detail: 'Despacho y recordatorios', route: null, enabled: false, accent: 'from-amber-500 to-amber-600', icon: '💊' },
+  { title: 'Reportes de Eficiencia', subtitle: 'CU09', detail: 'Indicadores operativos y exportación', route: null, enabled: false, accent: 'from-fuchsia-500 to-fuchsia-600', icon: '📈' },
+  { title: 'Asistencia Biométrica', subtitle: 'CU10', detail: 'Control de jornada del personal', route: null, enabled: false, accent: 'from-teal-500 to-teal-600', icon: '🧷' },
 ]
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [loading, setLoading] = React.useState(false)
-  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-dashboard', false)
+  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-shell', false)
 
   const handleLogout = async () => {
     setLoading(true)

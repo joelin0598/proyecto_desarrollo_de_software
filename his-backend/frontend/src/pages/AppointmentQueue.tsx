@@ -18,7 +18,7 @@ const toneByAdminState = (state: ScheduleAppointmentResponse['estadoAdministrati
 const AppointmentQueue: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-appointments-queue', true)
+  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-shell', false)
 
   const [loadingLogout, setLoadingLogout] = React.useState(false)
   const [loadingList, setLoadingList] = React.useState(true)
@@ -94,7 +94,7 @@ const AppointmentQueue: React.FC = () => {
         email={user?.email}
         role={user?.role}
         loading={loadingLogout}
-        activeSection={'appointments' as any}
+        activeSection="appointments"
         collapsed={sidebarCollapsed}
         onToggleCollapse={toggleCollapsed}
         onDashboard={() => navigate('/admin')}

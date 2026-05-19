@@ -24,6 +24,11 @@ type TriageFormData = {
   insuranceMode: 'UNSELECTED' | 'NONE' | 'INSURED'
   aseguradoraId?: number
   polizaSeguro: string
+  bancoTarjeta: string
+  numeroTarjeta: string
+  fechaVencimientoTarjeta: string
+  nombreTitularTarjeta: string
+  cvcTarjeta: string
   presionSistolica: string
   presionDiastolica: string
   frecuenciaCardiaca: string
@@ -50,6 +55,11 @@ const initialData: TriageFormData = {
   insuranceMode: 'UNSELECTED',
   aseguradoraId: undefined,
   polizaSeguro: '',
+  bancoTarjeta: '',
+  numeroTarjeta: '',
+  fechaVencimientoTarjeta: '',
+  nombreTitularTarjeta: '',
+  cvcTarjeta: '',
   presionSistolica: '',
   presionDiastolica: '',
   frecuenciaCardiaca: '',
@@ -64,13 +74,16 @@ type TriageStep = 'PERSONAL' | 'EMERGENCY' | 'INSURANCE' | 'VITALS'
 const steps: Array<{ key: TriageStep; title: string }> = [
   { key: 'PERSONAL', title: '1. Datos personales' },
   { key: 'EMERGENCY', title: '2. Contacto emergencia' },
-  { key: 'INSURANCE', title: '3. Seguro' },
+  { key: 'INSURANCE', title: '3. Validacion de pago' },
   { key: 'VITALS', title: '4. Signos vitales' },
 ]
 
 const PHONE_PATTERN = /^[0-9]{8}$/
 const DPI_PATTERN = /^[0-9]{13}$/
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const CARD_NUMBER_PATTERN = /^[0-9]{13,19}$/
+const CARD_EXPIRY_PATTERN = /^(0[1-9]|1[0-2])\/[0-9]{2}$/
+const CARD_CVC_PATTERN = /^[0-9]{3,4}$/
 
 function resolvePriority(form: TriageFormData): string {
   const saturacion = Number(form.saturacionOxigeno)
@@ -162,6 +175,13 @@ function validateStep(formData: TriageFormData, step: TriageStep): string | null
     }
     if (formData.insuranceMode === 'INSURED' && !formData.polizaSeguro.trim()) {
       return 'El numero de poliza es obligatorio cuando aplica seguro.'
+    }
+    if (formData.insuranceMode === 'NONE') {
+      if (!formData.bancoTarjeta.trim()) return 'El banco propietario de la tarjeta es obligatorio.'
+      if (!CARD_NUMBER_PATTERN.test(formData.numeroTarjeta.trim())) return 'El numero de tarjeta debe tener entre 13 y 19 digitos.'
+      if (!CARD_EXPIRY_PATTERN.test(formData.fechaVencimientoTarjeta.trim())) return 'La fecha de vencimiento debe estar en formato MM/YY.'
+      if (!formData.nombreTitularTarjeta.trim()) return 'El nombre del titular es obligatorio.'
+      if (!CARD_CVC_PATTERN.test(formData.cvcTarjeta.trim())) return 'El CVC debe tener 3 o 4 digitos.'
     }
     return null
   }
@@ -287,6 +307,11 @@ const TriageIntake: React.FC = () => {
       ...prev,
       insuranceMode: 'INSURED',
       aseguradoraId: insuranceId,
+      bancoTarjeta: '',
+      numeroTarjeta: '',
+      fechaVencimientoTarjeta: '',
+      nombreTitularTarjeta: '',
+      cvcTarjeta: '',
     }))
     setError('')
   }
@@ -298,6 +323,25 @@ const TriageIntake: React.FC = () => {
       aseguradoraId: undefined,
       polizaSeguro: '',
     }))
+    setError('')
+  }
+
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.replace(/\D/g, '').slice(0, 19)
+    setFormData((prev) => ({ ...prev, numeroTarjeta: sanitized }))
+    setError('')
+  }
+
+  const handleCardExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
+    const formatted = digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits
+    setFormData((prev) => ({ ...prev, fechaVencimientoTarjeta: formatted }))
+    setError('')
+  }
+
+  const handleCardCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.replace(/\D/g, '').slice(0, 4)
+    setFormData((prev) => ({ ...prev, cvcTarjeta: sanitized }))
     setError('')
   }
 
@@ -589,15 +633,15 @@ const TriageIntake: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Información de seguro */}
+                {/* Informacion de validacion de pago */}
                 <div className="rounded-lg border border-gray-200 overflow-hidden">
                   <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                    <h3 className="font-semibold text-gray-900">Seguro</h3>
+                    <h3 className="font-semibold text-gray-900">Validacion de pago</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-4">
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase">Estado</p>
-                      <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.insuranceMode === 'NONE' ? 'Sin seguro' : savedTriageData.formData.insuranceMode === 'INSURED' ? 'Con seguro' : 'No especificado'}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Modalidad</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.insuranceMode === 'NONE' ? 'Sin seguro (tarjeta)' : savedTriageData.formData.insuranceMode === 'INSURED' ? 'Con seguro' : 'No especificado'}</p>
                     </div>
                     {savedTriageData.formData.insuranceMode === 'INSURED' && savedTriageData.formData.aseguradoraId && (
                       <div>
@@ -610,6 +654,18 @@ const TriageIntake: React.FC = () => {
                         <p className="text-xs font-semibold text-gray-500 uppercase">Póliza</p>
                         <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.polizaSeguro}</p>
                       </div>
+                    )}
+                    {savedTriageData.formData.insuranceMode === 'NONE' && (
+                      <>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase">Banco</p>
+                          <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.bancoTarjeta}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase">Tarjeta</p>
+                          <p className="text-sm text-gray-900 font-medium mt-1">**** **** **** {savedTriageData.formData.numeroTarjeta.slice(-4)}</p>
+                        </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -757,7 +813,7 @@ const TriageIntake: React.FC = () => {
               {currentStep.key === 'INSURANCE' && (
                 <div className="space-y-4">
                   <div>
-                    <p className="block text-xs font-semibold text-gray-600 mb-2">Selecciona aseguradora (si aplica)</p>
+                    <p className="block text-xs font-semibold text-gray-600 mb-2">Selecciona modalidad de pago</p>
                     <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
@@ -770,36 +826,116 @@ const TriageIntake: React.FC = () => {
                       >
                         Sin seguro
                       </button>
-                      {insuranceOptions.map((insurance) => {
-                        const selected = formData.insuranceMode === 'INSURED' && formData.aseguradoraId === insurance.id
-                        return (
-                          <button
-                            key={insurance.id}
-                            type="button"
-                            onClick={() => selectInsurance(insurance.id)}
-                            className={`px-3 py-2 text-sm rounded-lg border ${
-                              selected
-                                ? 'bg-blue-600 text-white border-blue-600'
-                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                            }`}
-                          >
-                            {insurance.nombre}
-                          </button>
-                        )
-                      })}
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, insuranceMode: 'INSURED' }))}
+                        className={`px-3 py-2 text-sm rounded-lg border ${
+                          formData.insuranceMode === 'INSURED'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Con seguro
+                      </button>
                     </div>
                   </div>
 
+                  {formData.insuranceMode === 'NONE' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Banco propietario</label>
+                        <input
+                          name="bancoTarjeta"
+                          value={formData.bancoTarjeta}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="Ej. Banco Industrial"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre del titular</label>
+                        <input
+                          name="nombreTitularTarjeta"
+                          value={formData.nombreTitularTarjeta}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="Como aparece en la tarjeta"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Numero de tarjeta</label>
+                        <input
+                          name="numeroTarjeta"
+                          value={formData.numeroTarjeta}
+                          onChange={handleCardNumberChange}
+                          inputMode="numeric"
+                          maxLength={19}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="13 a 19 digitos"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Vencimiento</label>
+                          <input
+                            name="fechaVencimientoTarjeta"
+                            value={formData.fechaVencimientoTarjeta}
+                            onChange={handleCardExpiryChange}
+                            inputMode="numeric"
+                            maxLength={5}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            placeholder="MM/YY"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">CVC</label>
+                          <input
+                            name="cvcTarjeta"
+                            value={formData.cvcTarjeta}
+                            onChange={handleCardCvcChange}
+                            inputMode="numeric"
+                            maxLength={4}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            placeholder="3-4 digitos"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {formData.insuranceMode === 'INSURED' && (
-                    <div className="max-w-md">
-                      <label className="block text-xs font-semibold text-gray-600 mb-1">Numero de poliza</label>
-                      <input
-                        name="polizaSeguro"
-                        value={formData.polizaSeguro}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        placeholder="Ingresa numero de poliza"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Aseguradora</label>
+                        <select
+                          value={formData.aseguradoraId ?? ''}
+                          onChange={(e) => {
+                            const selected = Number(e.target.value)
+                            if (Number.isNaN(selected) || !selected) {
+                              setFormData((prev) => ({ ...prev, aseguradoraId: undefined }))
+                            } else {
+                              selectInsurance(selected)
+                            }
+                          }}
+                          disabled={catalogLoading}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        >
+                          <option value="">{catalogLoading ? 'Cargando aseguradoras...' : 'Selecciona aseguradora'}</option>
+                          {insuranceOptions.map((insurance) => (
+                            <option key={insurance.id} value={insurance.id}>{insurance.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Numero de poliza</label>
+                        <input
+                          name="polizaSeguro"
+                          value={formData.polizaSeguro}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="Ingresa numero de poliza"
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

@@ -32,7 +32,7 @@ const TriageList: React.FC = () => {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [loadingLogout, setLoadingLogout] = React.useState(false)
-  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-triage-list', true)
+  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-shell', false)
   const [loadingList, setLoadingList] = React.useState(true)
   const [refreshing, setRefreshing] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)

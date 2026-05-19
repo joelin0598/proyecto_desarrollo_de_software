@@ -122,7 +122,7 @@ const UserMaintenance: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const { user, logout } = useAuth()
-  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-users', true)
+  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-shell', false)
   const [loadingLogout, setLoadingLogout] = React.useState(false)
   const [loadingList, setLoadingList] = React.useState(true)
   const [refreshing, setRefreshing] = React.useState(false)

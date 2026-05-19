@@ -54,11 +54,11 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
 
         <nav className="space-y-2">
-          <SidebarNavButton label="Dashboard" icon="" collapsed={collapsed} active={activeSection === 'dashboard'} onClick={onDashboard} />
-          <SidebarNavButton label="Registro y Triaje" icon="" collapsed={collapsed} active={activeSection === 'triage'} onClick={onTriage} />
-          <SidebarNavButton label="Usuarios" icon="" collapsed={collapsed} active={activeSection === 'users'} onClick={onUsers} />
-          <SidebarNavButton label="Citas" icon="" collapsed={collapsed} active={activeSection === 'appointments'} onClick={onAppointments} />
-          <SidebarNavButton label="Listar Triajes" icon="" collapsed={collapsed} active={activeSection === 'triage-list'} onClick={onTriageList} />
+          <SidebarNavButton label="Dashboard" icon="📊" collapsed={collapsed} active={activeSection === 'dashboard'} onClick={onDashboard} />
+          <SidebarNavButton label="Registro y Triaje" icon="🩺" collapsed={collapsed} active={activeSection === 'triage'} onClick={onTriage} />
+          <SidebarNavButton label="Usuarios" icon="👥" collapsed={collapsed} active={activeSection === 'users'} onClick={onUsers} />
+          <SidebarNavButton label="Citas" icon="📅" collapsed={collapsed} active={activeSection === 'appointments'} onClick={onAppointments} />
+          <SidebarNavButton label="Listar Triajes" icon="📋" collapsed={collapsed} active={activeSection === 'triage-list'} onClick={onTriageList} />
         </nav>
       </div>
 
