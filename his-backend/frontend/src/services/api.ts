@@ -24,7 +24,7 @@ api.interceptors.response.use(
     const status = error?.response?.status
     const hasSession = !!storage.getItem(AUTH_TOKEN_KEY)
 
-    if (hasSession && (status === 401 || status === 403)) {
+    if (hasSession && status === 401) {
       storage.removeItem(AUTH_TOKEN_KEY)
       storage.removeItem(AUTH_USER_KEY)
       // Limpia llaves legacy por compatibilidad con sesiones antiguas.
@@ -94,6 +94,11 @@ export interface SpecialtyOption {
   descripcion?: string
 }
 
+export interface CareUnitOption {
+  id: number
+  nombre: string
+}
+
 export interface DoctorOption {
   personalId: number
   nombreCompleto: string
@@ -151,7 +156,7 @@ export interface UserMaintenanceUpdateRequest {
 
 export type PaymentOption = 'TARJETA' | 'SEGURO'
 export type AdministrativeAppointmentStatus = 'PAGO_VALIDADO' | 'PAGO_PENDIENTE'
-export type AppointmentStatus = 'PROGRAMADA' | 'CANCELADA' | 'ATENDIDA'
+export type AppointmentStatus = 'PROGRAMADA' | 'EN_CURSO' | 'CANCELADA' | 'ATENDIDA'
 
 export interface ScheduleAppointmentRequest {
   pacienteId?: number
@@ -189,7 +194,61 @@ export interface ScheduleAppointmentResponse {
   estadoAdministrativo: AdministrativeAppointmentStatus
   pagoValidado: boolean
   transaccionId?: string
+  codigoCita?: string | null
+  qrContenido?: string | null
   mensajeValidacion: string
+}
+
+export interface MedicalAppointmentQueueItemResponse {
+  citaMedicaId: number
+  pacienteId: number
+  pacienteNombre: string
+  pacienteDpi?: string | null
+  fechaCita?: string | null
+  horaCita?: string | null
+  motivoConsulta?: string | null
+  especialidadNombre?: string | null
+  prioridad: string
+  alertaEmergencia?: boolean
+  tipoAtencion?: string | null
+  presionSistolica?: number | null
+  presionDiastolica?: number | null
+  frecuenciaCardiaca?: number | null
+  temperatura?: number | null
+  saturacionOxigeno?: number | null
+  estadoAdministrativo?: AdministrativeAppointmentStatus | string | null
+}
+
+export interface MedicalAppointmentAttentionResponse {
+  citaMedicaDetalleId: number
+  citaMedicaId?: number | null
+  pacienteId: number
+  pacienteNombre: string
+  pacienteDpi?: string | null
+  personalId: number
+  medicoNombre: string
+  estado: AppointmentStatus
+  evaluacionFisica?: string | null
+  diagnostico?: string | null
+  ordenLaboratorio?: string | null
+  recetaMedica?: string | null
+  medicacionPrescrita?: string | null
+  requiereSeguimiento?: boolean | null
+  createdAt?: string | null
+  fechaCita?: string | null
+  horaCita?: string | null
+  motivoConsulta?: string | null
+  especialidadNombre?: string | null
+  prioridad?: string | null
+}
+
+export interface CloseMedicalAppointmentAttentionRequest {
+  evaluacionFisica: string
+  diagnostico: string
+  ordenLaboratorio?: string
+  recetaMedica?: string
+  medicacionPrescrita?: string
+  requiereSeguimiento?: boolean
 }
 
 export interface AuthResponse {
@@ -236,6 +295,9 @@ export const catalogAPI = {
   specialties: () =>
     api.get<SpecialtyOption[]>('/catalogs/specialties'),
 
+  careUnits: () =>
+    api.get<CareUnitOption[]>('/catalogs/care-units'),
+
   doctorsBySpecialty: (especialidadId?: number) =>
     api.get<DoctorOption[]>('/catalogs/doctors', {
       params: especialidadId ? { especialidadId } : undefined,
@@ -250,6 +312,7 @@ export type TriagePriority = 'ROJO' | 'NARANJA' | 'AMARILLO' | 'VERDE'
  * El personalId lo resuelve el backend desde el JWT.
  */
 export interface TriageRequest {
+  citaMedicaId?: number
   // Datos personales
   nombreCompleto: string
   dpi: string
@@ -264,6 +327,13 @@ export interface TriageRequest {
   // Seguro (opcional)
   aseguradoraId?: number
   polizaSeguro?: string
+  // Pago para flujo walk-in
+  metodoPago?: PaymentOption
+  bancoTarjeta?: string
+  numeroTarjeta?: string
+  fechaVencimientoTarjeta?: string
+  nombreTitularTarjeta?: string
+  cvc?: string
   // Signos vitales
   presionSistolica: number
   presionDiastolica: number
@@ -281,8 +351,11 @@ export interface TriageResponse {
   dpi: string
   pacienteNuevo: boolean
   signosVitalesId: number
+  citaMedicaId?: number | null
   prioridad: TriagePriority      // RN04 — calculada en dominio, nunca en frontend
   alertaEmergencia: boolean      // FA03 — true si prioridad es ROJO
+  pagoValidado: boolean
+  mensajePago: string
   presionSistolica: number
   presionDiastolica: number
   frecuenciaCardiaca: number
@@ -309,6 +382,19 @@ export interface TriageListItemResponse {
   tallaCm: number
 }
 
+export interface TriagePaidAppointmentLookupResponse {
+  citaMedicaId: number
+  pacienteId: number
+  pacienteNombre: string
+  pacienteDpi: string
+  medicoPersonalId: number
+  especialidadId?: number | null
+  fechaCita?: string | null
+  horaCita?: string | null
+  motivoConsulta?: string | null
+  estadoAdministrativo?: AdministrativeAppointmentStatus | string | null
+}
+
 export const triageAPI = {
   /** POST /api/triage — CU 2.0: registro de paciente + signos vitales + prioridad */
   create: (data: TriageRequest) =>
@@ -317,6 +403,14 @@ export const triageAPI = {
   /** GET /api/triage — listado cronológico de triages recientes */
   listRecent: () =>
     api.get<TriageListItemResponse[]>('/triage'),
+
+  /** GET /api/triage/paid-appointment?dpi=... — búsqueda de cita pagada para vincular triaje */
+  findPaidAppointmentByDpi: (dpi: string) =>
+    api.get<TriagePaidAppointmentLookupResponse>('/triage/paid-appointment', { params: { dpi } }),
+
+  /** GET /api/triage/paid-appointment?citaMedicaId=... — búsqueda de cita pagada por ID */
+  findPaidAppointmentById: (citaMedicaId: number) =>
+    api.get<TriagePaidAppointmentLookupResponse>('/triage/paid-appointment', { params: { citaMedicaId } }),
 }
 
 export const userMaintenanceAPI = {
@@ -342,6 +436,27 @@ export const appointmentAPI = {
 
   list: () =>
     api.get<ScheduleAppointmentResponse[]>('/appointments'),
+}
+
+export const appointmentAttentionAPI = {
+  queue: () =>
+    api.get<MedicalAppointmentQueueItemResponse[]>('/appointments/attention/queue'),
+
+  current: () =>
+    api.get<MedicalAppointmentAttentionResponse>('/appointments/attention/current', {
+      validateStatus: (status) => status >= 200 && status < 300,
+    }),
+
+  open: (citaMedicaId: number) =>
+    api.post<MedicalAppointmentAttentionResponse>('/appointments/attention/open', null, {
+      params: { citaMedicaId },
+    }),
+
+  cancel: () =>
+    api.post('/appointments/attention/cancel'),
+
+  close: (citaMedicaDetalleId: number, data: CloseMedicalAppointmentAttentionRequest) =>
+    api.patch<MedicalAppointmentAttentionResponse>(`/appointments/attention/${citaMedicaDetalleId}/close`, data),
 }
 
 export default api

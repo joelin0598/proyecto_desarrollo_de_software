@@ -1,6 +1,7 @@
 package his.application.usecases;
 
 import his.domain.models.HospitalStaff;
+import his.domain.models.CareUnit;
 import his.domain.models.InsuranceCatalog;
 import his.domain.models.MedicalSpecialityCatalog;
 import his.domain.models.PatientGender;
@@ -13,6 +14,8 @@ public interface CatalogUseCase {
     List<InsuranceCatalog> getActiveInsurances();
 
     List<MedicalSpecialityCatalog> getActiveSpecialties();
+
+    List<CareUnit> getCareUnits();
 
     List<HospitalStaff> getDoctorsBySpecialty(Long especialidadId);
 }

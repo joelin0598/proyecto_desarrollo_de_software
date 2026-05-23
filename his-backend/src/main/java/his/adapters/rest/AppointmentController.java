@@ -42,8 +42,10 @@ public class AppointmentController {
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('PACIENTE','ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
-    public ResponseEntity<List<ScheduleAppointmentResponse>> listAppointments() {
-        return ResponseEntity.ok(appointmentUseCase.listAppointments());
+    public ResponseEntity<List<ScheduleAppointmentResponse>> listAppointments(
+            @AuthenticationPrincipal UserDetails userDetails
+    ) {
+        return ResponseEntity.ok(appointmentUseCase.listAppointments(userDetails.getUsername()));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

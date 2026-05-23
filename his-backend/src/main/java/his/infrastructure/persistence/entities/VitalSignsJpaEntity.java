@@ -1,8 +1,5 @@
 package his.infrastructure.persistence.entities;
 
-
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import his.domain.models.Patient;
 import his.domain.models.Priority;
 import jakarta.persistence.*;
 import lombok.*;
@@ -20,8 +17,9 @@ public class VitalSignsJpaEntity extends BaseEntity{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long signosVitalesId;
 
-    @Column(name = "cita_medica_id")
-    private Long citaMedicaId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cita_medica_id")
+    private MedicalAppointmentJpaEntity citaMedica;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "paciente_id", nullable = false)

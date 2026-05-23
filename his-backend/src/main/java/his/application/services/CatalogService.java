@@ -1,6 +1,7 @@
 package his.application.services;
 
 import his.application.usecases.CatalogUseCase;
+import his.domain.models.CareUnit;
 import his.domain.models.HospitalStaff;
 import his.domain.models.InsuranceCatalog;
 import his.domain.models.MedicalSpecialityCatalog;
@@ -38,6 +39,11 @@ public class CatalogService implements CatalogUseCase {
     @Transactional(readOnly = true)
     public List<MedicalSpecialityCatalog> getActiveSpecialties() {
         return specialtyCatalogRepository.findAllActive();
+    }
+
+    @Override
+    public List<CareUnit> getCareUnits() {
+        return List.of(CareUnit.values());
     }
 
     @Override

@@ -7,7 +7,7 @@ import StatusChip from '@/components/ui/StatusChip'
 const mainPortalActions = [
   {
     title: 'Agendar cita',
-    icon: '📅',
+    icon: '',
     accent: 'from-cyan-500 to-cyan-600',
     useCase: 'CU04',
     statusLabel: 'Disponible en portal',
@@ -19,7 +19,7 @@ const mainPortalActions = [
   },
   {
     title: 'Consultar resultados',
-    icon: '🧪',
+    icon: '',
     accent: 'from-emerald-500 to-emerald-600',
     useCase: 'CU07',
     statusLabel: 'Sujeto a solvencia',
@@ -31,7 +31,7 @@ const mainPortalActions = [
   },
   {
     title: 'Recetas y recordatorios',
-    icon: '💊',
+    icon: '',
     accent: 'from-violet-500 to-violet-600',
     useCase: 'CU08',
     statusLabel: 'Seguimiento activo',
@@ -47,7 +47,7 @@ const patientRecordModules = [
   {
     title: 'Expediente clínico',
     subtitle: 'CU00 · FA02',
-    icon: '📋',
+    icon: '',
     accent: 'from-sky-500 to-sky-600',
     statusLabel: 'Acceso protegido',
     statusTone: 'slate' as const,
@@ -56,7 +56,7 @@ const patientRecordModules = [
   {
     title: 'Documentos clínicos',
     subtitle: 'CU00 · FA03',
-    icon: '📄',
+    icon: '',
     accent: 'from-fuchsia-500 to-fuchsia-600',
     statusLabel: 'Descarga condicionada',
     statusTone: 'amber' as const,
@@ -65,7 +65,7 @@ const patientRecordModules = [
   {
     title: 'Estado de cuenta',
     subtitle: 'CU05 · RN03',
-    icon: '💳',
+    icon: '',
     accent: 'from-amber-500 to-amber-600',
     statusLabel: 'Control administrativo',
     statusTone: 'orange' as const,
@@ -109,6 +109,13 @@ const UserPortal: React.FC = () => {
           </div>
           <nav className="space-y-2">
             <button type="button" className="w-full text-left px-3 py-2 rounded-lg text-sm bg-white text-blue-700 border border-blue-200 font-semibold">Dashboard</button>
+            <button
+              type="button"
+              onClick={() => navigate('/portal/my-appointments')}
+              className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-white/70 text-slate-700 transition"
+            >
+              Mis Citas
+            </button>
             <button type="button" className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-white/70 text-slate-700 transition">Servicios del portal</button>
             <button type="button" className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-white/70 text-slate-700 transition">Expediente y documentos</button>
             <button type="button" className="w-full text-left px-3 py-2 rounded-lg text-sm hover:bg-white/70 text-slate-700 transition">Estado administrativo</button>
@@ -198,7 +205,7 @@ const UserPortal: React.FC = () => {
             <div className="flex items-start justify-between gap-4 mb-4">
               <div>
                 <h3 className="font-semibold text-slate-900 flex items-center gap-2">
-                  <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm">🗂️</span>
+                  <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white text-sm">️</span>
                   Expediente y documentos del paciente
                 </h3>
                 <p className="text-sm text-slate-600 mt-1">Opciones derivadas de consulta del expediente y visualización/descarga documental.</p>
@@ -250,7 +257,7 @@ const UserPortal: React.FC = () => {
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <article className="rounded-xl border border-blue-200 bg-white shadow-sm p-5">
             <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 text-white text-sm">👤</span>
+              <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-slate-500 to-slate-600 text-white text-sm"></span>
               Información Personal
             </h3>
             <div className="space-y-3">
@@ -272,7 +279,7 @@ const UserPortal: React.FC = () => {
 
           <article className="rounded-xl border border-blue-200 bg-white shadow-sm p-5">
             <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-              <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white text-sm">🆘</span>
+              <span className="inline-flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600 text-white text-sm"></span>
               ¿Necesitas ayuda?
             </h3>
             <div className="space-y-2">

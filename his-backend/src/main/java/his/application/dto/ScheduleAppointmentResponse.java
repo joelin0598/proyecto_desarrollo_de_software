@@ -33,6 +33,8 @@ public class ScheduleAppointmentResponse {
     private AdministrativeAppointmentStatus estadoAdministrativo;
     private boolean pagoValidado;
     private String transaccionId;
+    private String codigoCita;
+    private String qrContenido;
     private String mensajeValidacion;
 }
 

@@ -24,8 +24,11 @@ public class TriageResponse {
 
     // Resultado del triaje
     private Long signosVitalesId;
+    private Long citaMedicaId;
     private Priority prioridad;         // calculada en dominio (RN04), NO en frontend
     private boolean alertaEmergencia;   // true = FA03 (prioridad ROJO)
+    private boolean pagoValidado;
+    private String mensajePago;
 
     // Signos vitales registrados
     private int presionSistolica;

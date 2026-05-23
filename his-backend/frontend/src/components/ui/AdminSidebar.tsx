@@ -5,7 +5,7 @@ type AdminSidebarProps = {
   email?: string
   role?: string
   loading: boolean
-  activeSection?: 'dashboard' | 'triage' | 'triage-list' | 'users' | 'appointments'
+  activeSection?: 'dashboard' | 'triage' | 'triage-list' | 'users' | 'appointments' | 'consultation'
   collapsed?: boolean
   showSessionDetails?: boolean
   onToggleCollapse: () => void
@@ -14,6 +14,7 @@ type AdminSidebarProps = {
   onUsers: () => void
   onTriageList: () => void
   onAppointments: () => void
+  onConsultation?: () => void
   onLogout: () => void
 }
 
@@ -30,6 +31,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onUsers,
   onTriageList,
   onAppointments,
+  onConsultation,
   onLogout,
 }) => {
   return (
@@ -54,11 +56,16 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
 
         <nav className="space-y-2">
-          <SidebarNavButton label="Dashboard" icon="📊" collapsed={collapsed} active={activeSection === 'dashboard'} onClick={onDashboard} />
-          <SidebarNavButton label="Registro y Triaje" icon="🩺" collapsed={collapsed} active={activeSection === 'triage'} onClick={onTriage} />
-          <SidebarNavButton label="Usuarios" icon="👥" collapsed={collapsed} active={activeSection === 'users'} onClick={onUsers} />
-          <SidebarNavButton label="Citas" icon="📅" collapsed={collapsed} active={activeSection === 'appointments'} onClick={onAppointments} />
-          <SidebarNavButton label="Listar Triajes" icon="📋" collapsed={collapsed} active={activeSection === 'triage-list'} onClick={onTriageList} />
+          <SidebarNavButton label="Dashboard" icon="" collapsed={collapsed} active={activeSection === 'dashboard'} onClick={onDashboard} />
+          <SidebarNavButton label="Registro y Triaje" icon="" collapsed={collapsed} active={activeSection === 'triage'} onClick={onTriage} />
+          {(role === 'ADMIN' || role === 'ENFERMERA') && (
+            <SidebarNavButton label="Usuarios" icon="" collapsed={collapsed} active={activeSection === 'users'} onClick={onUsers} />
+          )}
+          <SidebarNavButton label="Citas" icon="" collapsed={collapsed} active={activeSection === 'appointments'} onClick={onAppointments} />
+          <SidebarNavButton label="Listar Triajes" icon="" collapsed={collapsed} active={activeSection === 'triage-list'} onClick={onTriageList} />
+          {role === 'DOCTOR' && onConsultation && (
+            <SidebarNavButton label="Atención Médica" icon="⚕️" collapsed={collapsed} active={activeSection === 'consultation'} onClick={onConsultation} />
+          )}
         </nav>
       </div>
 

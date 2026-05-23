@@ -1,6 +1,7 @@
 package his.application.dto;
 
 import his.domain.models.PatientGender;
+import his.domain.models.PaymentOption;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Email;
@@ -27,6 +28,9 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TriageRequest {
+
+    // Referencia opcional a una cita ya programada (flujo web -> llegada al hospital -> triaje)
+    private Long citaMedicaId;
 
     // ── Datos personales del paciente ──────────────────────────────────────────
     @NotBlank(message = "El nombre completo es obligatorio")
@@ -65,6 +69,24 @@ public class TriageRequest {
 
     @Size(max = 80, message = "El numero de poliza no puede superar 80 caracteres")
     private String polizaSeguro;
+
+    // ── Pago opcional para triaje walk-in ───────────────────────────────────────
+    private PaymentOption metodoPago;
+
+    @Size(max = 80, message = "El banco no puede exceder 80 caracteres")
+    private String bancoTarjeta;
+
+    @Pattern(regexp = "^[0-9]{13,19}$", message = "El numero de tarjeta debe contener entre 13 y 19 digitos")
+    private String numeroTarjeta;
+
+    @Pattern(regexp = "^(0[1-9]|1[0-2])/\\d{2}$", message = "La fecha de vencimiento debe tener formato MM/yy")
+    private String fechaVencimientoTarjeta;
+
+    @Size(max = 120, message = "El nombre del titular no puede exceder 120 caracteres")
+    private String nombreTitularTarjeta;
+
+    @Pattern(regexp = "^[0-9]{3,4}$", message = "El CVC debe tener 3 o 4 digitos")
+    private String cvc;
 
     // ── Signos vitales (RN04 / FA02) ───────────────────────────────────────────
     @Min(value = 50, message = "La presion sistolica esta fuera de rango clinico (50-300)")

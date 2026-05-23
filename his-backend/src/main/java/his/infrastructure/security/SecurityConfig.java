@@ -48,6 +48,12 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers("/api/appointments/attention/**").hasAuthority("DOCTOR")
+                        .requestMatchers("/api/laboratory/**").hasAnyAuthority("LABORATORISTA", "DOCTOR", "ADMIN")
+                        .requestMatchers("/api/pharmacy/prescriptions/**").hasAnyAuthority("FARMACEUTICO", "DOCTOR", "ADMIN")
+                        .requestMatchers("/api/pharmacy/dispense").hasAnyAuthority("FARMACEUTICO", "ADMIN")
+                        .requestMatchers("/api/pharmacy/medicines").hasAnyAuthority("FARMACEUTICO", "DOCTOR", "ADMIN")
+                        .requestMatchers("/api/pharmacy/reminders/**").authenticated()
                         .anyRequest().authenticated()
                 )
 

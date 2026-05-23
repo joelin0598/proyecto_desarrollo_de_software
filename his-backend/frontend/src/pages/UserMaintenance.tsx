@@ -6,9 +6,12 @@ import useSidebarPreference from '@/hooks/useSidebarPreference'
 import { useAuth } from '@/context/AuthContext'
 import {
   authAPI,
+  catalogAPI,
   HOSPITAL_STAFF_ROLES,
+  type CareUnitOption,
   type UserMaintenanceCreateRequest,
   type UserMaintenanceResponse,
+  type SpecialtyOption,
   type UserMaintenanceUpdateRequest,
   type UserRole,
   userMaintenanceAPI,
@@ -130,6 +133,9 @@ const UserMaintenance: React.FC = () => {
   const [savingEdit, setSavingEdit] = React.useState(false)
   const [processingUserId, setProcessingUserId] = React.useState<number | null>(null)
   const [users, setUsers] = React.useState<UserMaintenanceResponse[]>([])
+  const [specialties, setSpecialties] = React.useState<SpecialtyOption[]>([])
+  const [careUnits, setCareUnits] = React.useState<CareUnitOption[]>([])
+  const [loadingCatalogs, setLoadingCatalogs] = React.useState(true)
   const [searchTerm, setSearchTerm] = React.useState('')
   const [roleFilter, setRoleFilter] = React.useState<'ALL' | UserRole>('ALL')
   const [statusFilter, setStatusFilter] = React.useState<'ALL' | 'ACTIVE' | 'SUSPENDED'>('ALL')
@@ -179,9 +185,30 @@ const UserMaintenance: React.FC = () => {
     }
   }, [])
 
+  const loadCatalogs = React.useCallback(async () => {
+    setLoadingCatalogs(true)
+    try {
+      const [specialtiesRes, careUnitsRes] = await Promise.all([
+        catalogAPI.specialties(),
+        catalogAPI.careUnits(),
+      ])
+      setSpecialties(specialtiesRes.data)
+      setCareUnits(careUnitsRes.data)
+    } catch (error) {
+      console.error('No se pudieron cargar los catalogos para mantenimiento de usuarios:', error)
+      setFeedback({ kind: 'error', message: 'No se pudieron cargar los catálogos de especialidades y unidades.' })
+    } finally {
+      setLoadingCatalogs(false)
+    }
+  }, [])
+
   React.useEffect(() => {
     void loadUsers()
   }, [loadUsers])
+
+  React.useEffect(() => {
+    void loadCatalogs()
+  }, [loadCatalogs])
 
   const filteredUsers = React.useMemo(() => {
     const normalized = searchTerm.trim().toLowerCase()
@@ -206,6 +233,16 @@ const UserMaintenance: React.FC = () => {
   const activeCount = users.filter((item) => item.active).length
   const suspendedCount = users.filter((item) => !item.active).length
   const adminCount = users.filter((item) => item.role === 'ADMIN').length
+
+  const specialtyById = React.useMemo(
+    () => new Map(specialties.map((item) => [item.id, item])),
+    [specialties],
+  )
+
+  const careUnitById = React.useMemo(
+    () => new Map(careUnits.map((item) => [item.id, item])),
+    [careUnits],
+  )
 
   const filteredSummary = `${filteredUsers.length} de ${users.length}`
 
@@ -491,8 +528,8 @@ const UserMaintenance: React.FC = () => {
                           <div>{item.numeroColegiado ? `Colegiado: ${item.numeroColegiado}` : 'Colegiado no registrado'}</div>
                           <div>{item.telefonoCorporativo ? `Teléfono: ${item.telefonoCorporativo}` : 'Teléfono no registrado'}</div>
                           <div>{item.direccion ? `Dirección: ${item.direccion}` : 'Dirección no registrada'}</div>
-                          <div>{item.especialidadId ? `Especialidad ID: ${item.especialidadId}` : 'Especialidad no asignada'}</div>
-                          <div>{item.unidadAtencionId ? `Unidad ID: ${item.unidadAtencionId}` : 'Unidad no asignada'}</div>
+                          <div>{item.especialidadId ? `Especialidad: ${specialtyById.get(item.especialidadId)?.nombre ?? `ID ${item.especialidadId}`}` : 'Especialidad no asignada'}</div>
+                          <div>{item.unidadAtencionId ? `Unidad: ${careUnitById.get(item.unidadAtencionId)?.nombre ?? `ID ${item.unidadAtencionId}`}` : 'Unidad no asignada'}</div>
                         </td>
                         <td className="px-3 py-3">
                           <div className="flex flex-wrap gap-2">
@@ -541,8 +578,8 @@ const UserMaintenance: React.FC = () => {
                       <div className="rounded-lg border border-blue-100 bg-white px-3 py-2">Colegiado: {item.numeroColegiado || 'N/A'}</div>
                       <div className="rounded-lg border border-blue-100 bg-white px-3 py-2">Teléfono: {item.telefonoCorporativo || 'N/A'}</div>
                       <div className="rounded-lg border border-blue-100 bg-white px-3 py-2 sm:col-span-2">Dirección: {item.direccion || 'N/A'}</div>
-                      <div className="rounded-lg border border-blue-100 bg-white px-3 py-2">Especialidad ID: {item.especialidadId ?? 'N/A'}</div>
-                      <div className="rounded-lg border border-blue-100 bg-white px-3 py-2">Unidad ID: {item.unidadAtencionId ?? 'N/A'}</div>
+                      <div className="rounded-lg border border-blue-100 bg-white px-3 py-2">Especialidad: {item.especialidadId ? specialtyById.get(item.especialidadId)?.nombre ?? `ID ${item.especialidadId}` : 'N/A'}</div>
+                      <div className="rounded-lg border border-blue-100 bg-white px-3 py-2">Unidad: {item.unidadAtencionId ? careUnitById.get(item.unidadAtencionId)?.nombre ?? `ID ${item.unidadAtencionId}` : 'N/A'}</div>
                     </div>
 
                     <div className="flex flex-wrap gap-2 mt-3">
@@ -658,12 +695,34 @@ const UserMaintenance: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Especialidad ID</label>
-                  <input type="number" min={1} name="especialidadId" value={createForm.especialidadId} onChange={handleCreateChange} placeholder="Opcional" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Especialidad</label>
+                  <select
+                    name="especialidadId"
+                    value={createForm.especialidadId}
+                    onChange={handleCreateChange}
+                    disabled={loadingCatalogs}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm disabled:bg-slate-100"
+                  >
+                    <option value="">Selecciona una especialidad</option>
+                    {specialties.map((specialty) => (
+                      <option key={specialty.id} value={specialty.id}>{specialty.nombre}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Unidad atención ID</label>
-                  <input type="number" min={1} name="unidadAtencionId" value={createForm.unidadAtencionId} onChange={handleCreateChange} placeholder="Opcional" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Unidad de atención</label>
+                  <select
+                    name="unidadAtencionId"
+                    value={createForm.unidadAtencionId}
+                    onChange={handleCreateChange}
+                    disabled={loadingCatalogs}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm disabled:bg-slate-100"
+                  >
+                    <option value="">Selecciona una unidad de atención</option>
+                    {careUnits.map((unit) => (
+                      <option key={unit.id} value={unit.id}>{unit.nombre}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">
@@ -724,12 +783,34 @@ const UserMaintenance: React.FC = () => {
                   <input type="text" name="numeroColegiado" value={editForm.numeroColegiado} onChange={handleEditChange} maxLength={20} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Especialidad ID</label>
-                  <input type="number" min={1} name="especialidadId" value={editForm.especialidadId} onChange={handleEditChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Especialidad</label>
+                  <select
+                    name="especialidadId"
+                    value={editForm.especialidadId}
+                    onChange={handleEditChange}
+                    disabled={loadingCatalogs}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm disabled:bg-slate-100"
+                  >
+                    <option value="">Sin cambios</option>
+                    {specialties.map((specialty) => (
+                      <option key={specialty.id} value={specialty.id}>{specialty.nombre}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">Unidad atención ID</label>
-                  <input type="number" min={1} name="unidadAtencionId" value={editForm.unidadAtencionId} onChange={handleEditChange} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm" />
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Unidad de atención</label>
+                  <select
+                    name="unidadAtencionId"
+                    value={editForm.unidadAtencionId}
+                    onChange={handleEditChange}
+                    disabled={loadingCatalogs}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm disabled:bg-slate-100"
+                  >
+                    <option value="">Sin cambios</option>
+                    {careUnits.map((unit) => (
+                      <option key={unit.id} value={unit.id}>{unit.nombre}</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-gray-600 mb-1">Dirección</label>

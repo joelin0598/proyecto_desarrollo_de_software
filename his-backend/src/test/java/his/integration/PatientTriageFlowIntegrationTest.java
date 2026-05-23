@@ -6,14 +6,16 @@ import his.application.dto.RegisterRequest;
 import his.application.dto.TriageRequest;
 import his.application.dto.TriageResponse;
 import his.domain.models.PatientGender;
+import his.domain.models.PaymentOption;
 import his.domain.models.Role;
 import his.application.services.AuthService;
 import his.application.services.TriageService;
 import his.domain.models.Priority;
 import his.infrastructure.persistence.entities.HospitalStaffJpaEntity;
+import his.infrastructure.persistence.entities.MedicalAppointmentJpaEntity;
 import his.infrastructure.persistence.repositories.HospitalStaffJpaRepository;
+import his.infrastructure.persistence.repositories.MedicalAppointmentJpaRepository;
 import his.infrastructure.persistence.repositories.PatientJpaRepository;
-import his.infrastructure.persistence.repositories.VitalSignsJpaRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,7 +36,7 @@ class PatientTriageFlowIntegrationTest {
     @Autowired private TriageService triageService;
     @Autowired private PatientJpaRepository patientJpaRepository;
     @Autowired private HospitalStaffJpaRepository hospitalStaffJpaRepository;
-    @Autowired private VitalSignsJpaRepository vitalSignsJpaRepository;
+    @Autowired private MedicalAppointmentJpaRepository medicalAppointmentJpaRepository;
 
     @Test
     void registerPatientAndCreateTriage_persistsExpectedData() {
@@ -77,6 +79,12 @@ class PatientTriageFlowIntegrationTest {
                 .genero(PatientGender.MASCULINO)
                 .contactoEmergencia("Maria Lopez")
                 .telefonoEmergencia("55551234")
+                .metodoPago(PaymentOption.TARJETA)
+                .bancoTarjeta("Banco Demo")
+                .numeroTarjeta("4111111111111111")
+                .fechaVencimientoTarjeta("12/99")
+                .nombreTitularTarjeta("CARLOS LOPEZ")
+                .cvc("123")
                 .presionSistolica(118)
                 .presionDiastolica(76)
                 .frecuenciaCardiaca(82)
@@ -94,10 +102,13 @@ class PatientTriageFlowIntegrationTest {
         assertEquals("1234567890123", triage.getDpi());
         assertEquals(Priority.NARANJA, triage.getPrioridad());
         assertFalse(triage.isAlertaEmergencia());
-        assertEquals(personal.getPersonalId(),
-                vitalSignsJpaRepository.findById(triage.getSignosVitalesId())
-                        .orElseThrow().getPersonal().getPersonalId());
+        MedicalAppointmentJpaEntity cita = medicalAppointmentJpaRepository.findById(triage.getCitaMedicaId())
+                .orElseThrow(() -> new IllegalStateException("No se encontro cita consolidada de triaje"));
+        assertEquals(triage.getPresionSistolica(), cita.getPresionSistolica());
+        assertEquals(triage.getPresionDiastolica(), cita.getPresionDiastolica());
+        assertEquals(triage.getFrecuenciaCardiaca(), cita.getFrecuenciaCardiaca());
+        assertEquals(personal.getPersonalId(), hospitalStaffJpaRepository.findById(personal.getPersonalId()).orElseThrow().getPersonalId());
         assertTrue(patientJpaRepository.count() >= 1);
-        assertTrue(vitalSignsJpaRepository.count() >= 1);
+        assertTrue(medicalAppointmentJpaRepository.count() >= 1);
     }
 }

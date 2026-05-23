@@ -16,6 +16,5 @@ public interface HospitalStaffJpaRepository extends JpaRepository<HospitalStaffJ
 
     List<HospitalStaffJpaEntity> findByRolAndIsActiveTrue(Role rol);
 
-    List<HospitalStaffJpaEntity> findByEspecialidadIdAndRolAndIsActiveTrue(Long especialidadId, Role rol);
+    List<HospitalStaffJpaEntity> findByEspecialidadEspecialidadIdAndRolAndIsActiveTrue(Long especialidadId, Role rol);
 }
-

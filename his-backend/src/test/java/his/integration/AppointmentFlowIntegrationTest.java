@@ -14,7 +14,9 @@ import his.domain.models.Role;
 import his.domain.models.StatusAppointment;
 import his.infrastructure.persistence.repositories.HospitalStaffJpaRepository;
 import his.infrastructure.persistence.repositories.MedicalAppointmentJpaRepository;
+import his.infrastructure.persistence.repositories.MedicalSpecialityJpaRepository;
 import his.infrastructure.persistence.repositories.PatientJpaRepository;
+import his.infrastructure.persistence.entities.MedicalSpecialityCatalogJpaEntity;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -38,9 +40,16 @@ class AppointmentFlowIntegrationTest {
     @Autowired private PatientJpaRepository patientJpaRepository;
     @Autowired private HospitalStaffJpaRepository hospitalStaffJpaRepository;
     @Autowired private MedicalAppointmentJpaRepository medicalAppointmentJpaRepository;
+    @Autowired private MedicalSpecialityJpaRepository medicalSpecialityJpaRepository;
 
     @Test
     void scheduleAppointment_withCardPayment_persistsExpectedState() {
+        Long especialidadId = medicalSpecialityJpaRepository.save(MedicalSpecialityCatalogJpaEntity.builder()
+                        .nombre("Medicina General IT")
+                        .descripcion("Especialidad de prueba para integración")
+                        .build())
+                .getEspecialidadId();
+
         RegisterRequest patientRequest = RegisterRequest.builder()
                 .nombreCompleto("Carlos Lopez")
                 .email("carlos.appt@example.com")
@@ -56,6 +65,7 @@ class AppointmentFlowIntegrationTest {
                 .direccion("Zona 10")
                 .telefonoCorporativo("50212345678")
                 .rol(Role.DOCTOR)
+                .especialidadId(especialidadId)
                 .numeroColegiado("COL-999")
                 .build();
 
@@ -85,7 +95,7 @@ class AppointmentFlowIntegrationTest {
         ScheduleAppointmentRequest request = ScheduleAppointmentRequest.builder()
                 .pacienteId(pacienteId)
                 .medicoPersonalId(doctorPersonalId)
-                .especialidadId(1L)
+                .especialidadId(especialidadId)
                 .fechaCita(LocalDate.now().plusDays(2))
                 .horaCita(LocalTime.of(8, 30))
                 .motivoConsulta("Consulta de seguimiento")

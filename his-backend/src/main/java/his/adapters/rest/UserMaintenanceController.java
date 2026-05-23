@@ -1,4 +1,5 @@
 package his.adapters.rest;
+import his.adapters.exception.DuplicateEmailException;
 import his.application.dto.ErrorResponse;
 import his.application.dto.RegisterRequestAdmin;
 import his.application.dto.UpdateHospitalStaffUserRequest;
@@ -65,6 +66,12 @@ public class UserMaintenanceController {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleValidation(IllegalArgumentException ex) {
         log.warn("Validacion de mantenimiento de usuarios fallida: {}", ex.getMessage());
+        return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
+    }
+
+    @ExceptionHandler(DuplicateEmailException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicate(DuplicateEmailException ex) {
+        log.warn("Duplicidad en mantenimiento de usuarios: {}", ex.getMessage());
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
     @ExceptionHandler(MethodArgumentNotValidException.class)

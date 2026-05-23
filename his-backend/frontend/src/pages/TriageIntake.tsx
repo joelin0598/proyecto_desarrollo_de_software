@@ -5,6 +5,8 @@ import {
   triageAPI,
   type InsuranceOption,
   type PatientGender,
+  type TriagePaidAppointmentLookupResponse,
+  type TriageRequest,
   type PatientGenderOption,
   type TriageResponse,
 } from '@/services/api'
@@ -12,6 +14,8 @@ import StatusChip from '@/components/ui/StatusChip'
 import useSidebarPreference from '@/hooks/useSidebarPreference'
 
 type TriageFormData = {
+  flowType: '' | 'WITH_APPOINTMENT' | 'WALK_IN'
+  citaMedicaId: string
   nombreCompleto: string
   dpi: string
   fechaNacimiento: string
@@ -43,6 +47,8 @@ type SavedTriageData = TriageResponse & {
 }
 
 const initialData: TriageFormData = {
+  flowType: '',
+  citaMedicaId: '',
   nombreCompleto: '',
   dpi: '',
   fechaNacimiento: '',
@@ -120,6 +126,23 @@ function sanitizeIntegerInput(rawValue: string, maxDigits: number, maxValue: num
   return String(Math.min(numericValue, maxValue))
 }
 
+function extractAppointmentId(rawValue: string): string {
+  const value = rawValue.trim()
+  if (!value) return ''
+
+  const qrMatch = value.match(/CITA_ID\s*=\s*(\d+)/i)
+  if (qrMatch?.[1]) return qrMatch[1]
+
+  const codeMatch = value.match(/CITA-(\d+)-/i)
+  if (codeMatch?.[1]) return codeMatch[1]
+
+  const directMatch = value.match(/^\d+$/)
+  if (directMatch?.[0]) return directMatch[0]
+
+  const firstNumber = value.match(/(\d{1,12})/)
+  return firstNumber?.[1] ?? ''
+}
+
 function getPriorityStatusChip(
   priority: string,
   isVitalsStep: boolean = false,
@@ -167,8 +190,18 @@ function validateStep(formData: TriageFormData, step: TriageStep): string | null
   }
 
   if (step === 'INSURANCE') {
+    if (!formData.flowType) {
+      return 'Debes indicar si el paciente llega con cita programada o es walk-in.'
+    }
+    if (formData.flowType === 'WITH_APPOINTMENT') {
+      const citaId = Number(formData.citaMedicaId)
+      if (!Number.isInteger(citaId) || citaId <= 0) {
+        return 'Debes ingresar un citaMedicaId valido para paciente con cita programada.'
+      }
+      return null
+    }
     if (formData.insuranceMode === 'UNSELECTED') {
-      return 'Debes seleccionar una opcion de seguro: aseguradora o sin seguro.'
+      return 'Debes seleccionar una opcion de pago para paciente walk-in: seguro o tarjeta.'
     }
     if (formData.insuranceMode === 'INSURED' && !formData.aseguradoraId) {
       return 'Debes seleccionar una aseguradora disponible.'
@@ -216,6 +249,9 @@ const TriageIntake: React.FC = () => {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [savedTriageData, setSavedTriageData] = useState<SavedTriageData | null>(null)
+  const [paidAppointmentLookup, setPaidAppointmentLookup] = useState<TriagePaidAppointmentLookupResponse | null>(null)
+  const [paidAppointmentLookupLoading, setPaidAppointmentLookupLoading] = useState(false)
+  const [paidAppointmentLookupMessage, setPaidAppointmentLookupMessage] = useState('')
   const submitLockRef = useRef(false)
 
   const currentStep = steps[currentStepIndex]
@@ -326,6 +362,39 @@ const TriageIntake: React.FC = () => {
     setError('')
   }
 
+  const selectFlowWithAppointment = () => {
+    setFormData((prev) => ({
+      ...prev,
+      flowType: 'WITH_APPOINTMENT',
+      insuranceMode: 'UNSELECTED',
+      aseguradoraId: undefined,
+      polizaSeguro: '',
+      bancoTarjeta: '',
+      numeroTarjeta: '',
+      fechaVencimientoTarjeta: '',
+      nombreTitularTarjeta: '',
+      cvcTarjeta: '',
+    }))
+    setError('')
+  }
+
+  const selectFlowWalkIn = () => {
+    setFormData((prev) => ({
+      ...prev,
+      flowType: 'WALK_IN',
+      citaMedicaId: '',
+      insuranceMode: prev.insuranceMode === 'UNSELECTED' ? 'NONE' : prev.insuranceMode,
+    }))
+    setError('')
+  }
+
+  const handleCitaMedicaIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const extracted = extractAppointmentId(e.target.value)
+    const sanitized = extracted.slice(0, 12)
+    setFormData((prev) => ({ ...prev, citaMedicaId: sanitized }))
+    setError('')
+  }
+
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const sanitized = e.target.value.replace(/\D/g, '').slice(0, 19)
     setFormData((prev) => ({ ...prev, numeroTarjeta: sanitized }))
@@ -343,6 +412,39 @@ const TriageIntake: React.FC = () => {
     const sanitized = e.target.value.replace(/\D/g, '').slice(0, 4)
     setFormData((prev) => ({ ...prev, cvcTarjeta: sanitized }))
     setError('')
+  }
+
+  const lookupPaidAppointmentById = async () => {
+    const citaMedicaId = Number(formData.citaMedicaId)
+    if (!Number.isInteger(citaMedicaId) || citaMedicaId <= 0) {
+      setPaidAppointmentLookup(null)
+      setPaidAppointmentLookupMessage('Ingresa un ID de cita valido antes de buscar la cita pagada.')
+      return
+    }
+
+    setPaidAppointmentLookupLoading(true)
+    setPaidAppointmentLookupMessage('')
+    setError('')
+    try {
+      const { data } = await triageAPI.findPaidAppointmentById(citaMedicaId)
+      setPaidAppointmentLookup(data)
+      setFormData((prev) => ({
+        ...prev,
+        citaMedicaId: String(data.citaMedicaId),
+      }))
+      setPaidAppointmentLookupMessage('Cita pagada encontrada y validada por ID.')
+    } catch (err: any) {
+      const status = err?.response?.status
+      setPaidAppointmentLookup(null)
+      if (status === 404) {
+        setPaidAppointmentLookupMessage('No se encontró cita PROGRAMADA con PAGO_VALIDADO para el ID ingresado.')
+      } else {
+        const backendMsg = err?.response?.data?.errorMessage || err?.response?.data?.message
+        setPaidAppointmentLookupMessage(backendMsg || 'No se pudo buscar la cita pagada por ID.')
+      }
+    } finally {
+      setPaidAppointmentLookupLoading(false)
+    }
   }
 
   const goNextStep = () => {
@@ -396,7 +498,12 @@ const TriageIntake: React.FC = () => {
     let savedSuccessfully = false
 
     try {
-      const payload = {
+      const isWithAppointment = formData.flowType === 'WITH_APPOINTMENT'
+      const isWalkInInsurance = formData.flowType === 'WALK_IN' && formData.insuranceMode === 'INSURED'
+      const isWalkInCard = formData.flowType === 'WALK_IN' && formData.insuranceMode === 'NONE'
+
+      const payload: TriageRequest = {
+        citaMedicaId: isWithAppointment ? Number(formData.citaMedicaId) : undefined,
         nombreCompleto: formData.nombreCompleto,
         dpi: formData.dpi,
         fechaNacimiento: formData.fechaNacimiento || undefined,
@@ -406,8 +513,14 @@ const TriageIntake: React.FC = () => {
         direccion: formData.direccion || undefined,
         contactoEmergencia: formData.contactoEmergencia,
         telefonoEmergencia: formData.telefonoEmergencia,
-        aseguradoraId: formData.insuranceMode === 'INSURED' ? formData.aseguradoraId : undefined,
-        polizaSeguro: formData.insuranceMode === 'INSURED' ? formData.polizaSeguro || undefined : undefined,
+        metodoPago: isWithAppointment ? undefined : (isWalkInInsurance ? 'SEGURO' : 'TARJETA'),
+        aseguradoraId: isWalkInInsurance ? formData.aseguradoraId : undefined,
+        polizaSeguro: isWalkInInsurance ? formData.polizaSeguro || undefined : undefined,
+        bancoTarjeta: isWalkInCard ? formData.bancoTarjeta || undefined : undefined,
+        numeroTarjeta: isWalkInCard ? formData.numeroTarjeta || undefined : undefined,
+        fechaVencimientoTarjeta: isWalkInCard ? formData.fechaVencimientoTarjeta || undefined : undefined,
+        nombreTitularTarjeta: isWalkInCard ? formData.nombreTitularTarjeta || undefined : undefined,
+        cvc: isWalkInCard ? formData.cvcTarjeta || undefined : undefined,
         presionSistolica: Number(formData.presionSistolica),
         presionDiastolica: Number(formData.presionDiastolica),
         frecuenciaCardiaca: Number(formData.frecuenciaCardiaca),
@@ -441,6 +554,8 @@ const TriageIntake: React.FC = () => {
     setCurrentStepIndex(0)
     setError('')
     setSavedTriageData(null)
+    setPaidAppointmentLookup(null)
+    setPaidAppointmentLookupMessage('')
   }
 
   const priorityChip = getPriorityStatusChip(priority, isVitalsStep)
@@ -571,7 +686,7 @@ const TriageIntake: React.FC = () => {
                       </div>
                       <div className={`rounded-lg border p-4 ${alertaColor.card}`}>
                         <p className={`text-xs font-semibold uppercase mb-1 ${alertaColor.title}`}>Alerta Emergencia</p>
-                        <p className={`text-xl font-bold ${alertaColor.value}`}>{savedTriageData.alertaEmergencia ? '🔴 SÍ' : '✓ No'}</p>
+                        <p className={`text-xl font-bold ${alertaColor.value}`}>{savedTriageData.alertaEmergencia ? ' SÍ' : '✓ No'}</p>
                       </div>
                     </div>
                   )
@@ -640,22 +755,46 @@ const TriageIntake: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-4">
                     <div>
-                      <p className="text-xs font-semibold text-gray-500 uppercase">Modalidad</p>
-                      <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.insuranceMode === 'NONE' ? 'Sin seguro (tarjeta)' : savedTriageData.formData.insuranceMode === 'INSURED' ? 'Con seguro' : 'No especificado'}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Origen de atencion</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">
+                        {savedTriageData.formData.flowType === 'WITH_APPOINTMENT' ? 'Paciente con cita programada' : 'Paciente walk-in'}
+                      </p>
                     </div>
-                    {savedTriageData.formData.insuranceMode === 'INSURED' && savedTriageData.formData.aseguradoraId && (
+                    {savedTriageData.formData.flowType === 'WITH_APPOINTMENT' && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Cita médica ID</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.citaMedicaId ?? savedTriageData.formData.citaMedicaId}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Modalidad</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">
+                        {savedTriageData.formData.flowType === 'WITH_APPOINTMENT'
+                          ? 'Pago validado en cita médica'
+                          : savedTriageData.formData.insuranceMode === 'NONE'
+                            ? 'Sin seguro (tarjeta)'
+                            : savedTriageData.formData.insuranceMode === 'INSURED'
+                              ? 'Con seguro'
+                              : 'No especificado'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Resultado</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.mensajePago}</p>
+                    </div>
+                    {savedTriageData.formData.flowType === 'WALK_IN' && savedTriageData.formData.insuranceMode === 'INSURED' && savedTriageData.formData.aseguradoraId && (
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase">Aseguradora</p>
                         <p className="text-sm text-gray-900 font-medium mt-1">{insuranceNameMap[String(savedTriageData.formData.aseguradoraId)] || `ID ${savedTriageData.formData.aseguradoraId}`}</p>
                       </div>
                     )}
-                    {savedTriageData.formData.insuranceMode === 'INSURED' && (
+                    {savedTriageData.formData.flowType === 'WALK_IN' && savedTriageData.formData.insuranceMode === 'INSURED' && (
                       <div>
                         <p className="text-xs font-semibold text-gray-500 uppercase">Póliza</p>
                         <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.polizaSeguro}</p>
                       </div>
                     )}
-                    {savedTriageData.formData.insuranceMode === 'NONE' && (
+                    {savedTriageData.formData.flowType === 'WALK_IN' && savedTriageData.formData.insuranceMode === 'NONE' && (
                       <>
                         <div>
                           <p className="text-xs font-semibold text-gray-500 uppercase">Banco</p>
@@ -813,6 +952,81 @@ const TriageIntake: React.FC = () => {
               {currentStep.key === 'INSURANCE' && (
                 <div className="space-y-4">
                   <div>
+                    <p className="block text-xs font-semibold text-gray-600 mb-2">Origen del paciente</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={selectFlowWithAppointment}
+                        className={`px-3 py-2 text-sm rounded-lg border ${
+                          formData.flowType === 'WITH_APPOINTMENT'
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Llega con cita programada
+                      </button>
+                      <button
+                        type="button"
+                        onClick={selectFlowWalkIn}
+                        className={`px-3 py-2 text-sm rounded-lg border ${
+                          formData.flowType === 'WALK_IN'
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Walk-in (sin cita)
+                      </button>
+                    </div>
+                  </div>
+
+                  {formData.flowType === 'WITH_APPOINTMENT' && (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="md:col-span-2">
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Cita medica ID</label>
+                          <input
+                            name="citaMedicaId"
+                            value={formData.citaMedicaId}
+                            onChange={handleCitaMedicaIdChange}
+                            maxLength={12}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            placeholder="ID de cita o contenido del QR"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">Para pacientes con cita pagada en línea/caja.</p>
+                        </div>
+                        <div className="flex items-end">
+                          <button
+                            type="button"
+                            onClick={lookupPaidAppointmentById}
+                            disabled={paidAppointmentLookupLoading}
+                            className="w-full px-3 py-2 text-sm rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                          >
+                            {paidAppointmentLookupLoading ? 'Buscando...' : 'Buscar cita pagada por ID'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {paidAppointmentLookupMessage && (
+                        <div className="text-xs rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-700">
+                          {paidAppointmentLookupMessage}
+                        </div>
+                      )}
+
+                      {paidAppointmentLookup && (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900 grid grid-cols-1 md:grid-cols-3 gap-2">
+                          <div><span className="font-semibold">Cita:</span> #{paidAppointmentLookup.citaMedicaId}</div>
+                          <div><span className="font-semibold">Fecha:</span> {paidAppointmentLookup.fechaCita || 'N/D'}</div>
+                          <div><span className="font-semibold">Hora:</span> {paidAppointmentLookup.horaCita || 'N/D'}</div>
+                          <div className="md:col-span-2"><span className="font-semibold">Motivo:</span> {paidAppointmentLookup.motivoConsulta || 'N/D'}</div>
+                          <div><span className="font-semibold">Estado:</span> {paidAppointmentLookup.estadoAdministrativo || 'N/D'}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {formData.flowType === 'WALK_IN' && (
+                    <>
+                  <div>
                     <p className="block text-xs font-semibold text-gray-600 mb-2">Selecciona modalidad de pago</p>
                     <div className="flex flex-wrap gap-2">
                       <button
@@ -937,6 +1151,8 @@ const TriageIntake: React.FC = () => {
                         />
                       </div>
                     </div>
+                  )}
+                    </>
                   )}
                 </div>
               )}

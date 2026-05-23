@@ -76,15 +76,16 @@ class AppointmentControllerTest {
 
     @Test
     void listAppointments_returnsOk() {
-        when(appointmentUseCase.listAppointments()).thenReturn(List.of(
+        UserDetails userDetails = new User("paciente@hospital.com", "pass", Collections.emptyList());
+        when(appointmentUseCase.listAppointments("paciente@hospital.com")).thenReturn(List.of(
                 ScheduleAppointmentResponse.builder().citaMedicaId(10L).build()
         ));
 
-        ResponseEntity<List<ScheduleAppointmentResponse>> response = appointmentController.listAppointments();
+        ResponseEntity<List<ScheduleAppointmentResponse>> response = appointmentController.listAppointments(userDetails);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertNotNull(response.getBody());
         assertEquals(1, response.getBody().size());
-        verify(appointmentUseCase).listAppointments();
+        verify(appointmentUseCase).listAppointments("paciente@hospital.com");
     }
 }

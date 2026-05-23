@@ -13,10 +13,12 @@ public class MedicalPrescriptionDetails {
     private Long recetaMedicaDetalleId;
     private Long recetaMedicaId;
     private Long medicamentoId;
-    private Long unidadAtencionId;
-    private Long personalId;
+    private String medicamentoNombre;
     private int cantidad;
     private String dosis;
-    private boolean pagoValidado;
+    private String viaAdministracion;
+    private Integer frecuenciaHoras;
+    private Integer duracionDias;
     private boolean despachado;
+    private boolean pagoValidado;
 }

@@ -1,0 +1,299 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                      🏥 RESPUESTA A TU PREGUNTA 🏥                           ║
+║                                                                              ║
+║  "¿Por qué no aparecen pacientes para atender?                             ║
+║   ¿Dónde se persiste la información de pago?"                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ✅ RESPUESTA 1: ¿DÓNDE SE GUARDA EL PAGO?                                   │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📍 UBICACIÓN:                                                               │
+│     PostgreSQL → Tabla "cita_medica" → Columna "estado_administrativo"      │
+│                                                                              │
+│  💾 VALORES:                                                                │
+│     • 'PAGO_VALIDADO'  → ✅ Pago aprobado → APARECE EN COLA               │
+│     • 'PAGO_PENDIENTE' → ❌ Pago rechazado → NO APARECE                    │
+│                                                                              │
+│  📝 INFORMACIÓN ADICIONAL:                                                  │
+│     • observacion_administrativa → Razón del rechazo (mensaje)             │
+│     • metodo_pago → TARJETA o SEGURO                                       │
+│     • costo_consulta → 175.00 (siempre)                                    │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ✅ RESPUESTA 2: ¿POR QUÉ NO APARECEN PACIENTES?                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Hay 3 RAZONES POSIBLES:                                                    │
+│                                                                              │
+│  1️⃣  CITAS CON PAGO PENDIENTE                                              │
+│      ├─ Tarjeta rechazada (termina en 0000)                                │
+│      ├─ Póliza de seguro rechazada (empieza con X)                         │
+│      └─ SOLUCIÓN: Crear citas con datos de pago válidos                    │
+│                                                                              │
+│  2️⃣  NO HAY CITAS EN LA BD                                                 │
+│      ├─ No se han creado citas aún                                         │
+│      └─ SOLUCIÓN: Crear citas vía API POST /api/appointments              │
+│                                                                              │
+│  3️⃣  CITAS NO SON "PROGRAMADA"                                             │
+│      ├─ Ya fueron atendidas (estado = ATENDIDA)                           │
+│      ├─ Ya están en curso (estado = EN_CURSO)                             │
+│      └─ SOLUCIÓN: Verificar estado en la BD                                │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🚀 CÓMO RESOLVER EN 3 PASOS                                                 │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  PASO 1: LEE "RESPUESTA_PREGUNTA_PAGO.md" (5 minutos)                      │
+│  ────────────────────────────────────────────────────────                  │
+│  • Entiende dónde se guarda el pago                                         │
+│  • Entiende por qué no aparecen pacientes                                  │
+│  • Elige la solución que te aplica                                         │
+│                                                                              │
+│  PASO 2: EJECUTA "check_appointments.ps1" (30 segundos)                    │
+│  ────────────────────────────────────────────────────────                  │
+│  .\check_appointments.ps1                                                  │
+│                                                                              │
+│  Ver el estado actual de:                                                   │
+│  ✓ Citas en la BD                                                          │
+│  ✓ Citas con pago validado                                                 │
+│  ✓ Citas con pago pendiente                                                │
+│                                                                              │
+│  PASO 3: SEGÚN EL RESULTADO...                                             │
+│  ────────────────────────────────────────────────────────                  │
+│  • SIN CITAS → Abre "GUA_CREAR_CITAS.md"                                  │
+│  • CON PROBLEMAS → Sigue "CHECKLIST_CU06.md"                              │
+│  • NECESITAS DETALLE → Lee "DIAGNSTICO_CITAS.md"                          │
+│  • ERES VISUAL → Lee "DIAGRAMA_VALIDACIN_PAGO.md"                         │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 📚 DOCUMENTACIÓN COMPLETA GENERADA                                          │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📄 RESPUESTA_PREGUNTA_PAGO.md                                              │
+│     ⭐ EMPIEZA AQUÍ - Respuesta rápida y clara                              │
+│     5 min | Dónde se guarda pago + por qué no aparecen + soluciones       │
+│                                                                              │
+│  🔍 DIAGNSTICO_CITAS.md                                                    │
+│     Análisis técnico profundo                                               │
+│     15 min | Código fuente + queries + 4 casos posibles                    │
+│                                                                              │
+│  📝 GUA_CREAR_CITAS.md                                                     │
+│     Cómo crear citas de prueba                                              │
+│     10 min | Ejemplos de curl + script PowerShell                          │
+│                                                                              │
+│  🎨 DIAGRAMA_VALIDACIN_PAGO.md                                             │
+│     Visuales y diagramas ASCII                                              │
+│     10 min | Flujos + tablas + árboles de decisión                         │
+│                                                                              │
+│  ✅ CHECKLIST_CU06.md                                                       │
+│     Verificación paso a paso en 6 fases                                     │
+│     20 min | Checklists + debugging                                         │
+│                                                                              │
+│  🔧 check_appointments.ps1                                                 │
+│     Script PowerShell de diagnóstico                                        │
+│     30 seg | Consulta automática a la BD                                    │
+│                                                                              │
+│  📚 NDICE_DOCUMENTACIN.md                                                  │
+│     Índice completo                                                         │
+│     5 min | Navegación + referencias rápidas                               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 💾 TABLA DE PERSISTENCIA                                                    │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────┐               │
+│  │ PostgreSQL (localhost:5432)                             │               │
+│  │ └─ Base de datos: "his"                                 │               │
+│  │    └─ Tabla: "cita_medica"                              │               │
+│  │       ├─ cita_medica_id (ID de cita)                    │               │
+│  │       ├─ paciente_id (ID de paciente)                   │               │
+│  │       ├─ personal_id (ID de doctor)                     │               │
+│  │       ├─ estado_cita (PROGRAMADA, EN_CURSO, ATENDIDA)  │               │
+│  │       ├─ estado_administrativo ⭐ AQUÍ SE GUARDA       │               │
+│  │       │  ├─ 'PAGO_VALIDADO'   → ✅ APARECE             │               │
+│  │       │  └─ 'PAGO_PENDIENTE'  → ❌ NO APARECE          │               │
+│  │       ├─ observacion_administrativa (Razón)             │               │
+│  │       ├─ metodo_pago (TARJETA / SEGURO)                │               │
+│  │       ├─ costo_consulta (175.00)                        │               │
+│  │       ├─ fecha_cita, hora_cita                          │               │
+│  │       └─ created_at, updated_at, is_active              │               │
+│  └─────────────────────────────────────────────────────────┘               │
+│                        ↑                                                    │
+│                        │ Persistencia                                       │
+│                        │                                                    │
+│  ┌─────────────────────────────────────────────────────────┐               │
+│  │ Backend (Spring Boot - localhost:8080)                  │               │
+│  │                                                         │               │
+│  │ AppointmentService.scheduleAppointment()               │               │
+│  │   └─ validateAndSimulatePayment()                      │               │
+│  │      ├─ SI aprobado → PAGO_VALIDADO ✅               │               │
+│  │      └─ SI rechazado → PAGO_PENDIENTE ❌              │               │
+│  │         │                                               │               │
+│  │         └─ Guarda en cita_medica                       │               │
+│  │                                                         │               │
+│  │ MedicalAppointmentAttentionService.getPatientQueue()   │               │
+│  │   └─ findPendingQueueByDoctor()                        │               │
+│  │      └─ SELECT * FROM cita_medica                     │               │
+│  │         WHERE estado_administrativo = 'PAGO_VALIDADO' │               │
+│  │           AND estado_cita = 'PROGRAMADA'               │               │
+│  │                                                         │               │
+│  └─────────────────────────────────────────────────────────┘               │
+│                        ↑                                                    │
+│                        │ API                                                │
+│                        │                                                    │
+│  ┌─────────────────────────────────────────────────────────┐               │
+│  │ Frontend (React - localhost:5173)                       │               │
+│  │ /doctor/appointments/attention                         │               │
+│  │                                                         │               │
+│  │ appointmentAttentionAPI.queue()                         │               │
+│  │   └─ GET /api/appointments/attention/queue             │               │
+│  │      └─ Muestra cola de pacientes                      │               │
+│  │         (SOLO con pago validado)                       │               │
+│  │                                                         │               │
+│  └─────────────────────────────────────────────────────────┘               │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🎯 VALIDACIÓN DE PAGO (SIMULADA)                                            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  💳 PAGO CON TARJETA:                                                       │
+│  ─────────────────────                                                      │
+│  SI numeroTarjeta.endsWith("0000")                                          │
+│    → ❌ RECHAZADA (simulación de saldo insuficiente)                       │
+│    → estado_administrativo = 'PAGO_PENDIENTE'                              │
+│                                                                              │
+│  SI NO (termina en otro número)                                             │
+│    → ✅ APROBADA                                                            │
+│    → estado_administrativo = 'PAGO_VALIDADO'                               │
+│                                                                              │
+│  Ejemplos:                                                                  │
+│    • 4111111111111111 → ✅ APROBADA                                        │
+│    • 4111111111110000 → ❌ RECHAZADA                                       │
+│    • 5500005500005500 → ✅ APROBADA                                        │
+│                                                                              │
+│  🏥 PAGO CON SEGURO:                                                        │
+│  ──────────────────                                                         │
+│  SI póliza.startsWith("X") OR póliza.contains("RECHAZADA")                │
+│    → ❌ RECHAZADA (simulación de póliza no vigente)                       │
+│    → estado_administrativo = 'PAGO_PENDIENTE'                              │
+│                                                                              │
+│  SI NO                                                                      │
+│    → ✅ APROBADA                                                            │
+│    → estado_administrativo = 'PAGO_VALIDADO'                               │
+│                                                                              │
+│  Ejemplos:                                                                  │
+│    • POL2024001234     → ✅ APROBADA                                       │
+│    • XPOL2024001234    → ❌ RECHAZADA                                      │
+│    • POL-RECHAZADA     → ❌ RECHAZADA                                      │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ⚙️ CRITERIOS PARA APARECER EN LA COLA                                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Una cita APARECERÁ en /doctor/appointments/attention SOLO SI cumple TODO:  │
+│                                                                              │
+│  ✓ estado_cita = 'PROGRAMADA'                                               │
+│  ✓ estado_administrativo = 'PAGO_VALIDADO'  ← CRUCIAL                     │
+│  ✓ personal_id = [ID del doctor autenticado]                              │
+│  ✓ is_active = true                                                        │
+│                                                                              │
+│  SI FALTA CUALQUIERA DE ESTOS → LA CITA NO APARECERÁ                       │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🔄 FLUJO COMPLETO DE UNA CITA                                               │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  CU 2.0: TRIAGE (Urgencia)                                                  │
+│  ───────────────────────────                                                │
+│  Paciente llega → Registra signos vitales → Asigna prioridad               │
+│  ✗ NO crea cita automáticamente                                             │
+│                                                                              │
+│  ↓                                                                           │
+│                                                                              │
+│  CU 04: APPOINTMENT SCHEDULING (Agendar cita)                              │
+│  ──────────────────────────────────────────────                            │
+│  POST /api/appointments                                                     │
+│  ├─ Validar pago (tarjeta o seguro)                                        │
+│  ├─ SI aprobado → estado_administrativo = PAGO_VALIDADO ✅                │
+│  └─ SI rechazado → estado_administrativo = PAGO_PENDIENTE ❌              │
+│                                                                              │
+│  ↓                                                                           │
+│                                                                              │
+│  CU 06: APPOINTMENT ATTENTION (Atender cita) ← TÚ ESTÁS AQUÍ               │
+│  ────────────────────────────────────────────                              │
+│  /doctor/appointments/attention                                             │
+│                                                                              │
+│  GET /api/appointments/attention/queue                                      │
+│  └─ Muestra SOLO citas con:                                                │
+│     • estado_cita = 'PROGRAMADA'                                           │
+│     • estado_administrativo = 'PAGO_VALIDADO'                              │
+│                                                                              │
+│  Doctor hace clic en "Iniciar atención"                                     │
+│  └─ POST /api/appointments/attention/open                                  │
+│     └─ estado_cita pasa a EN_CURSO                                         │
+│        └─ Desaparece de la cola                                            │
+│           └─ Aparece en "Atención en curso"                                │
+│                                                                              │
+│  Doctor registra evaluación y diagnóstico                                   │
+│  └─ PATCH /api/appointments/attention/{id}/close                           │
+│     └─ estado_cita pasa a ATENDIDA                                         │
+│        └─ Se guarda: evaluación física, diagnóstico, etc.                 │
+│           └─ Desaparece completamente de la cola                           │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ❓ PREGUNTAS FRECUENTES                                                     │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ P1: ¿Las citas del triage aparecen automáticamente?                        │
+│ R:  No. El triage solo crea signos vitales. Después debes crear una cita   │
+│     médica (CU04).                                                          │
+│                                                                              │
+│ P2: ¿Dónde se guarda el pago?                                              │
+│ R:  En cita_medica.estado_administrativo (PAGO_VALIDADO/PAGO_PENDIENTE)   │
+│                                                                              │
+│ P3: ¿Hay tabla de transacciones?                                           │
+│ R:  No hay transacciones persistidas. Solo el estado en la cita.            │
+│                                                                              │
+│ P4: ¿Cómo aparecen pacientes del triage en la cola?                        │
+│ R:  1. Médico crea cita (CU04)                                             │
+│     2. Pago debe validarse                                                  │
+│     3. Entonces aparece en /doctor/appointments/attention (CU06)            │
+│                                                                              │
+│ P5: ¿Cómo autorizo un pago rechazado?                                      │
+│ R:  No hay endpoint. Crea una nueva cita con datos válidos.                │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 🎯 SIGUIENTE: ABRE "RESPUESTA_PREGUNTA_PAGO.md"                            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│ O EJECUTA: .\check_appointments.ps1                                        │
+│                                                                              │
+│ O LEE: GUA_CREAR_CITAS.md (si no hay citas en la BD)                       │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║ Documentación generada: 2026-05-21                                         ║
+║ Estado: ✅ Completo y listo para usar                                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+

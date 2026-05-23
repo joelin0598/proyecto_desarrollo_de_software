@@ -1,6 +1,7 @@
 package his.adapters.rest;
 
 import his.application.dto.TriageListItemsResponse;
+import his.application.dto.TriagePaidAppointmentLookupResponse;
 import his.application.dto.TriageRequest;
 import his.application.dto.TriageResponse;
 import his.application.usecases.TriageUseCase;
@@ -18,6 +19,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -106,5 +108,36 @@ class TriageControllerTest {
         assertEquals(1, response.getBody().size());
         assertEquals(99L, response.getBody().get(0).getSignosVitalesId());
         verify(triageUseCase).listarTriajesRecientes();
+    }
+
+    @Test
+    void findPaidAppointmentByDpi_returnsOk_whenFound() {
+        TriagePaidAppointmentLookupResponse dto = TriagePaidAppointmentLookupResponse.builder()
+                .citaMedicaId(10L)
+                .pacienteId(5L)
+                .pacienteDpi("1234567890123")
+                .estadoAdministrativo("PAGO_VALIDADO")
+                .build();
+
+        when(triageUseCase.findPaidAppointmentByDpi("1234567890123")).thenReturn(Optional.of(dto));
+
+        ResponseEntity<TriagePaidAppointmentLookupResponse> response =
+                triageController.findPaidAppointmentByDpi("1234567890123");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(10L, response.getBody().getCitaMedicaId());
+        verify(triageUseCase).findPaidAppointmentByDpi("1234567890123");
+    }
+
+    @Test
+    void findPaidAppointmentByDpi_returnsNotFound_whenMissing() {
+        when(triageUseCase.findPaidAppointmentByDpi("1234567890123")).thenReturn(Optional.empty());
+
+        ResponseEntity<TriagePaidAppointmentLookupResponse> response =
+                triageController.findPaidAppointmentByDpi("1234567890123");
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        verify(triageUseCase).findPaidAppointmentByDpi("1234567890123");
     }
 }

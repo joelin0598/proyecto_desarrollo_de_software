@@ -12,7 +12,6 @@ public class VitalSignsMapper {
         if(domain == null) return null;
         return VitalSignsJpaEntity.builder()
                 .signosVitalesId(domain.getSignosVitalesId())
-                .citaMedicaId(domain.getCitaMedicaId())
                 .presionSistolica(domain.getPresionSistolica())
                 .presionDiastolica(domain.getPresionDiastolica())
                 .frecuenciaCardiaca(domain.getFrecuenciaCardiaca())
@@ -28,7 +27,7 @@ public class VitalSignsMapper {
         if(entity == null) return null;
         return VitalSigns.builder()
                 .signosVitalesId(entity.getSignosVitalesId())
-                .citaMedicaId(entity.getCitaMedicaId())
+                .citaMedicaId(entity.getCitaMedica() != null ? entity.getCitaMedica().getCitaMedicaId() : null)
                 .pacienteId(entity.getPaciente() != null ? entity.getPaciente().getPacienteId() : null)
                 .personalId(entity.getPersonal() != null ? entity.getPersonal().getPersonalId() : null)
                 .presionSistolica(entity.getPresionSistolica())

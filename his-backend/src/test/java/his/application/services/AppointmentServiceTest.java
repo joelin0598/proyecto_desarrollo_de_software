@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -38,8 +39,8 @@ class AppointmentServiceTest {
     @Mock private PatientRepository patientRepository;
     @Mock private HospitalStaffRepository hospitalStaffRepository;
     @Mock private MedicalSpecialityRepository specialtyCatalogRepository;
-    @Mock private InsuranceCatalogRepository insuranceCatalogRepository;
     @Mock private UserRepository userRepository;
+    @Mock private PaymentValidationService paymentValidationService;
 
     private AppointmentService appointmentService;
 
@@ -50,8 +51,8 @@ class AppointmentServiceTest {
                 patientRepository,
                 hospitalStaffRepository,
                 specialtyCatalogRepository,
-                insuranceCatalogRepository,
-                userRepository
+                userRepository,
+                paymentValidationService
         );
     }
 
@@ -64,6 +65,8 @@ class AppointmentServiceTest {
         when(specialtyCatalogRepository.findById(5L)).thenReturn(Optional.empty());
         when(medicalAppointmentRepository.existsByPersonalIdAndDateTime(30L, LocalDate.now().plusDays(2), LocalTime.of(8, 0)))
                 .thenReturn(false);
+        when(paymentValidationService.validateForAppointment(any(ScheduleAppointmentRequest.class)))
+                .thenReturn(new PaymentValidationService.PaymentValidationResult(true, "Pago con tarjeta validado correctamente"));
 
         when(medicalAppointmentRepository.save(any(MedicalAppointment.class))).thenAnswer(invocation -> {
             MedicalAppointment m = invocation.getArgument(0);
@@ -103,6 +106,8 @@ class AppointmentServiceTest {
         when(hospitalStaffRepository.findById(30L)).thenReturn(Optional.of(HospitalStaff.builder().personalId(30L).rol(Role.DOCTOR).build()));
         when(medicalAppointmentRepository.existsByPersonalIdAndDateTime(30L, LocalDate.now().plusDays(2), LocalTime.of(8, 30)))
                 .thenReturn(false);
+        when(paymentValidationService.validateForAppointment(any(ScheduleAppointmentRequest.class)))
+                .thenReturn(new PaymentValidationService.PaymentValidationResult(false, "Pago pendiente"));
 
         when(medicalAppointmentRepository.save(any(MedicalAppointment.class))).thenAnswer(invocation -> {
             MedicalAppointment m = invocation.getArgument(0);
@@ -183,6 +188,39 @@ class AppointmentServiceTest {
                 () -> appointmentService.scheduleAppointment(request, email));
 
         assertTrue(ex.getMessage().contains("rol DOCTOR"));
+    }
+
+    @Test
+    void listAppointments_forPaciente_filtersByAuthenticatedOwner() {
+        String email = "paciente@hospital.com";
+        User pacienteUser = User.builder().userId(15L).role(Role.PACIENTE).build();
+        Patient patient = Patient.builder().pacienteId(20L).nombreCompleto("Ana Perez").dpi("1234567890123").build();
+
+        MedicalAppointment appointment = MedicalAppointment.builder()
+                .citaMedicaId(501L)
+                .pacienteId(20L)
+                .personalId(30L)
+                .fechaCita(LocalDate.now().plusDays(5))
+                .horaCita(LocalTime.of(9, 0))
+                .motivoConsulta("Seguimiento")
+                .metodoPago(PaymentOption.TARJETA)
+                .costoConsulta(175.0)
+                .estadoCita(StatusAppointment.PROGRAMADA)
+                .estadoAdministrativo(AdministrativeAppointmentStatus.PAGO_VALIDADO)
+                .build();
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(pacienteUser));
+        when(patientRepository.findByUsuarioId(15L)).thenReturn(Optional.of(patient));
+        when(medicalAppointmentRepository.findByPacienteIdOrderByDateTimeDesc(20L)).thenReturn(List.of(appointment));
+        when(patientRepository.findById(20L)).thenReturn(Optional.of(patient));
+        when(hospitalStaffRepository.findById(30L)).thenReturn(Optional.of(HospitalStaff.builder().personalId(30L).rol(Role.DOCTOR).build()));
+
+        List<ScheduleAppointmentResponse> result = appointmentService.listAppointments(email);
+
+        assertEquals(1, result.size());
+        assertEquals(501L, result.get(0).getCitaMedicaId());
+        verify(medicalAppointmentRepository).findByPacienteIdOrderByDateTimeDesc(20L);
+        verify(medicalAppointmentRepository, never()).findAllOrderByDateTimeDesc();
     }
 
     private String nextMonth() {

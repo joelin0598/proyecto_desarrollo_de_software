@@ -9,7 +9,6 @@ import {
   type InsuranceOption,
   type PaymentOption,
   type ScheduleAppointmentRequest,
-  type ScheduleAppointmentResponse,
   type SpecialtyOption,
 } from '@/services/api'
 type FeedbackState = { kind: 'success' | 'error'; message: string } | null
@@ -73,25 +72,17 @@ const formatDate = (value: string) => {
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('es-GT', { dateStyle: 'medium' }).format(date)
 }
-const appointmentTone = (item: ScheduleAppointmentResponse) => {
-  if (item.estadoAdministrativo === 'PAGO_VALIDADO') return 'emerald' as const
-  return 'amber' as const
-}
 const AppointmentManagement: React.FC = () => {
   const { user } = useAuth()
   const [loadingCatalogs, setLoadingCatalogs] = React.useState(true)
   const [saving, setSaving] = React.useState(false)
-  const [loadingList, setLoadingList] = React.useState(true)
   const [loadingDoctors, setLoadingDoctors] = React.useState(false)
-  const [refreshing, setRefreshing] = React.useState(false)
   const [stepIndex, setStepIndex] = React.useState(0)
   const [form, setForm] = React.useState<AppointmentFormState>(initialForm)
   const [feedback, setFeedback] = React.useState<FeedbackState>(null)
-  const [appointments, setAppointments] = React.useState<ScheduleAppointmentResponse[]>([])
   const [insurances, setInsurances] = React.useState<InsuranceOption[]>([])
   const [specialties, setSpecialties] = React.useState<SpecialtyOption[]>([])
   const [doctors, setDoctors] = React.useState<DoctorOption[]>([])
-  const [search, setSearch] = React.useState('')
   const currentStep = stepOrder[stepIndex]
   const loadCatalogs = React.useCallback(async () => {
     setLoadingCatalogs(true)
@@ -121,24 +112,9 @@ const AppointmentManagement: React.FC = () => {
       setLoadingDoctors(false)
     }
   }, [])
-  const loadAppointments = React.useCallback(async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true)
-    else setLoadingList(true)
-    try {
-      const response = await appointmentAPI.list()
-      setAppointments(response.data)
-    } catch (error: any) {
-      const msg = error?.response?.data?.errorMessage || 'No se pudo cargar el listado de citas.'
-      setFeedback({ kind: 'error', message: msg })
-    } finally {
-      setLoadingList(false)
-      setRefreshing(false)
-    }
-  }, [])
   React.useEffect(() => {
     void loadCatalogs()
-    void loadAppointments()
-  }, [loadCatalogs, loadAppointments])
+  }, [loadCatalogs])
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target
     if (name === 'especialidadId') {
@@ -259,10 +235,9 @@ const AppointmentManagement: React.FC = () => {
       const saved = response.data
       setFeedback({
         kind: 'success',
-        message: `Cita #${saved.citaMedicaId} registrada. Estado administrativo: ${saved.estadoAdministrativo}.`,
+        message: `Cita #${saved.citaMedicaId} registrada. Revisa su QR y seguimiento en Mis Citas.`,
       })
       handleReset()
-      await loadAppointments(true)
     } catch (error: any) {
       const msg = error?.response?.data?.errorMessage || error?.message || 'No se pudo registrar la cita.'
       setFeedback({ kind: 'error', message: msg })
@@ -270,24 +245,9 @@ const AppointmentManagement: React.FC = () => {
       setSaving(false)
     }
   }
-  const filteredAppointments = React.useMemo(() => {
-    const normalized = search.trim().toLowerCase()
-    if (!normalized) return appointments
-    return appointments.filter((item) => {
-      const blob = [
-        item.citaMedicaId,
-        item.pacienteId,
-        item.medicoPersonalId,
-        item.metodoPago,
-        item.estadoAdministrativo,
-        item.estadoCita,
-        item.mensajeValidacion,
-      ].join(' ').toLowerCase()
-      return blob.includes(normalized)
-    })
-  }, [appointments, search])
   const selectedSpecialtyName = specialties.find((s) => String(s.id) === form.especialidadId)?.nombre
   const selectedDoctorName = doctors.find((d) => String(d.personalId) === form.medicoPersonalId)?.nombreCompleto
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800">
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
@@ -299,6 +259,7 @@ const AppointmentManagement: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <Link to="/portal" className="px-4 py-2 rounded-lg border border-blue-200 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold">Volver al portal</Link>
+            <Link to="/portal/my-appointments" className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">Ir a Mis Citas</Link>
             <StatusChip label="Tarifa fija Q175.00" tone="blue" />
           </div>
         </div>
@@ -526,60 +487,15 @@ const AppointmentManagement: React.FC = () => {
           </form>
         </section>
         <section className="rounded-xl border border-blue-200 bg-white shadow-sm p-4 lg:p-5">
-          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">Citas registradas</h3>
-              <p className="text-sm text-slate-600 mt-1">Seguimiento del estado administrativo de tus solicitudes.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar por IDs o estado" className="px-3 py-2 rounded-lg border border-blue-200 bg-white text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
-              <button type="button" onClick={() => void loadAppointments(true)} disabled={refreshing || loadingList} className="px-4 py-2 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-blue-200 font-semibold text-sm disabled:opacity-60">
-                {refreshing ? 'Actualizando...' : 'Actualizar'}
-              </button>
-            </div>
+          <h3 className="text-lg font-bold text-slate-900">Seguimiento de citas</h3>
+          <p className="text-sm text-slate-600 mt-1">
+            El listado con QR, soporte y estado de tus citas ahora está en la vista <strong>Mis Citas</strong>.
+          </p>
+          <div className="mt-4">
+            <Link to="/portal/my-appointments" className="inline-flex px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold">
+              Abrir Mis Citas
+            </Link>
           </div>
-          {loadingList ? (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 text-sm text-slate-600">Cargando citas...</div>
-          ) : filteredAppointments.length === 0 ? (
-            <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 text-sm text-slate-600">No hay citas para mostrar.</div>
-          ) : (
-            <div className="overflow-x-auto rounded-xl border border-blue-100">
-              <table className="min-w-full text-xs">
-                <thead className="bg-blue-50 text-slate-700">
-                  <tr>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Cita</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Agenda</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Pago</th>
-                    <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Resultado</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-blue-100 bg-white">
-                  {filteredAppointments.map((item) => (
-                    <tr key={item.citaMedicaId} className="align-top hover:bg-sky-50/60 transition">
-                      <td className="px-3 py-3 text-slate-700">
-                        <div className="font-semibold text-sm text-slate-900">Cita #{item.citaMedicaId}</div>
-                        <div className="text-slate-500 mt-1">Paciente ID: {item.pacienteId}</div>
-                        <div className="text-slate-500 mt-1">Médico ID: {item.medicoPersonalId}</div>
-                      </td>
-                      <td className="px-3 py-3 text-slate-700">
-                        <div>{formatDate(item.fechaCita)}</div>
-                        <div className="mt-1">{item.horaCita}</div>
-                        <div className="mt-1">Q{item.costoConsulta.toFixed(2)}</div>
-                      </td>
-                      <td className="px-3 py-3 text-slate-700">
-                        <div className="mb-2"><StatusChip label={item.metodoPago} tone="blue" /></div>
-                        <StatusChip label={item.estadoAdministrativo.replace('_', ' ')} tone={appointmentTone(item)} />
-                      </td>
-                      <td className="px-3 py-3 text-slate-700">
-                        <div className="mb-2"><StatusChip label={item.estadoCita} tone="slate" /></div>
-                        <p className="text-xs text-slate-600 max-w-[320px]">{item.mensajeValidacion}</p>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </section>
       </main>
     </div>

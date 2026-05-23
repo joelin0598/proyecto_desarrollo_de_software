@@ -12,8 +12,11 @@ import UserMaintenance from '@/pages/UserMaintenance'
 import TriageList from '@/pages/TriageList'
 import AppointmentManagement from '@/pages/AppointmentManagement'
 import AppointmentQueue from '@/pages/AppointmentQueue'
+import AppointmentAttentionWorkspace from '@/pages/AppointmentAttentionWorkspace'
+import AppointmentAttentionInProgress from '@/pages/AppointmentAttentionInProgress'
 import UserPortal from '@/pages/UserPortal'
 import TriageIntake from '@/pages/TriageIntake'
+import MyAppointments from '@/pages/MyAppointments'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PublicOnlyRoute from '@/components/PublicOnlyRoute'
 import { HOSPITAL_STAFF_ROLES } from '@/services/api'
@@ -79,7 +82,7 @@ function App() {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+              <ProtectedRoute requiredRoles={['ADMIN', 'ENFERMERA']}>
                 <UserMaintenance />
               </ProtectedRoute>
             }
@@ -129,6 +132,35 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/portal/my-appointments"
+            element={
+              <ProtectedRoute requiredRoles={['PACIENTE']}>
+                <MyAppointments />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/doctor/appointments/attention"
+            element={
+              <ProtectedRoute requiredRoles={['DOCTOR']}>
+                <AppointmentAttentionWorkspace />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/doctor/appointments/attention/current"
+            element={
+              <ProtectedRoute requiredRoles={['DOCTOR']}>
+                <AppointmentAttentionInProgress />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="/doctor/consultation" element={<Navigate to="/doctor/appointments/attention" replace />} />
 
           <Route path="/user" element={<Navigate to="/portal" replace />} />
           <Route path="/signin" element={<Navigate to="/login" replace />} />

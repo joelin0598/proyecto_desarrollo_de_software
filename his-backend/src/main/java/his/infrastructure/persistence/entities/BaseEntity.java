@@ -38,6 +38,9 @@ public class BaseEntity implements Serializable {
     @PreUpdate
     public void preUpdate() {
         updatedAt = LocalDateTime.now();
+        if (isActive == null) {
+            isActive = true;
+        }
     }
 
 }

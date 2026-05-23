@@ -2,6 +2,7 @@ package his.adapters.rest;
 
 import his.application.dto.ErrorResponse;
 import his.application.dto.TriageListItemsResponse;
+import his.application.dto.TriagePaidAppointmentLookupResponse;
 import his.application.dto.TriageRequest;
 import his.application.dto.TriageResponse;
 import his.application.usecases.TriageUseCase;
@@ -54,6 +55,22 @@ public class TriageController {
     @PreAuthorize("hasAnyAuthority('ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
     public ResponseEntity<List<TriageListItemsResponse>> listarTriajesRecientes() {
         return ResponseEntity.ok(triageUseCase.listarTriajesRecientes());
+    }
+
+    @GetMapping(value = "/paid-appointment", params = "dpi")
+    @PreAuthorize("hasAnyAuthority('ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
+    public ResponseEntity<TriagePaidAppointmentLookupResponse> findPaidAppointmentByDpi(@RequestParam String dpi) {
+        return triageUseCase.findPaidAppointmentByDpi(dpi)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping(value = "/paid-appointment", params = "citaMedicaId")
+    @PreAuthorize("hasAnyAuthority('ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
+    public ResponseEntity<TriagePaidAppointmentLookupResponse> findPaidAppointmentById(@RequestParam Long citaMedicaId) {
+        return triageUseCase.findPaidAppointmentById(citaMedicaId)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

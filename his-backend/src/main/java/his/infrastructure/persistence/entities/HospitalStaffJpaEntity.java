@@ -28,8 +28,9 @@ public class HospitalStaffJpaEntity extends BaseEntity {
     @JoinColumn(name = "usuario_id", nullable = false)
     private UserJpaEntity usuarioSistema;
 
-    @Column(name = "especialidad_id")
-    private Long especialidadId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "especialidad_id")
+    private MedicalSpecialityCatalogJpaEntity especialidad;
 
     @Column(name = "unidad_atencion_id")
     private Long unidadAtencionId;

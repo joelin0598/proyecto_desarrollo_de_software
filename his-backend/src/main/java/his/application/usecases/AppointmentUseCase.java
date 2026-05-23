@@ -9,4 +9,8 @@ public interface AppointmentUseCase {
     ScheduleAppointmentResponse scheduleAppointment(ScheduleAppointmentRequest request, String emailSolicitante);
 
     List<ScheduleAppointmentResponse> listAppointments();
+
+    default List<ScheduleAppointmentResponse> listAppointments(String emailSolicitante) {
+        return listAppointments();
+    }
 }

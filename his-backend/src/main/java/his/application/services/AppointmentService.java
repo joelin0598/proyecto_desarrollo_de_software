@@ -8,7 +8,6 @@ import his.domain.models.HospitalStaff;
 import his.domain.models.MedicalSpecialityCatalog;
 import his.domain.models.MedicalAppointment;
 import his.domain.models.Patient;
-import his.domain.models.PaymentOption;
 import his.domain.models.Role;
 import his.domain.models.StatusAppointment;
 import his.domain.ports.*;
@@ -19,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Slf4j
@@ -33,8 +32,8 @@ public class AppointmentService implements AppointmentUseCase {
     private final PatientRepository patientRepository;
     private final HospitalStaffRepository hospitalStaffRepository;
     private final MedicalSpecialityRepository specialtyCatalogRepository;
-    private final InsuranceCatalogRepository insuranceCatalogRepository;
     private final UserRepository userRepository;
+    private final PaymentValidationService paymentValidationService;
 
     @Override
     @Transactional
@@ -55,7 +54,8 @@ public class AppointmentService implements AppointmentUseCase {
             throw new IllegalArgumentException("El medico seleccionado ya tiene una cita en ese horario");
         }
 
-        PaymentValidationResult paymentValidation = validateAndSimulatePayment(request);
+        PaymentValidationService.PaymentValidationResult paymentValidation =
+                paymentValidationService.validateForAppointment(request);
 
         MedicalAppointment appointment = MedicalAppointment.builder()
                 .pacienteId(patient.getPacienteId())
@@ -67,13 +67,20 @@ public class AppointmentService implements AppointmentUseCase {
                 .metodoPago(request.getMetodoPago())
                 .costoConsulta(CONSULTA_COSTO_Q)
                 .estadoCita(StatusAppointment.PROGRAMADA)
-                .estadoAdministrativo(paymentValidation.approved
+                .estadoAdministrativo(paymentValidation.approved()
                         ? AdministrativeAppointmentStatus.PAGO_VALIDADO
                         : AdministrativeAppointmentStatus.PAGO_PENDIENTE)
-                .observacionAdministrativa(paymentValidation.message)
+                .observacionAdministrativa(paymentValidation.message())
+                .solvenciaPago(paymentValidation.approved())
+                .citaProgramada(true)
                 .build();
 
         MedicalAppointment saved = medicalAppointmentRepository.save(appointment);
+
+        // Código/QR se generan una vez existe el ID de cita.
+        saved.setCodigoCita(buildAppointmentCode(saved));
+        saved.setQrContenido(buildQrPayload(saved, patient));
+        saved = medicalAppointmentRepository.save(saved);
 
         log.info("CU04 cita creada id={} pacienteId={} doctorId={} estadoAdmin={}",
                 saved.getCitaMedicaId(),
@@ -81,13 +88,37 @@ public class AppointmentService implements AppointmentUseCase {
                 saved.getPersonalId(),
                 saved.getEstadoAdministrativo());
 
-        return toResponse(saved, paymentValidation.approved, paymentValidation.message);
+        return toResponse(saved, paymentValidation.approved(), paymentValidation.message());
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ScheduleAppointmentResponse> listAppointments() {
         return medicalAppointmentRepository.findAllOrderByDateTimeDesc().stream()
+                .map(item -> toResponse(
+                        item,
+                        item.getEstadoAdministrativo() == AdministrativeAppointmentStatus.PAGO_VALIDADO,
+                        item.getObservacionAdministrativa()))
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ScheduleAppointmentResponse> listAppointments(String emailSolicitante) {
+        var currentUser = userRepository.findByEmail(emailSolicitante)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontro el usuario autenticado"));
+
+        List<MedicalAppointment> appointments;
+        if (currentUser.getRole() == Role.PACIENTE) {
+            Patient patient = patientRepository.findByUsuarioId(currentUser.getUserId())
+                    .orElseThrow(() -> new IllegalArgumentException(
+                            "El usuario autenticado no tiene perfil de paciente registrado"));
+            appointments = medicalAppointmentRepository.findByPacienteIdOrderByDateTimeDesc(patient.getPacienteId());
+        } else {
+            appointments = medicalAppointmentRepository.findAllOrderByDateTimeDesc();
+        }
+
+        return appointments.stream()
                 .map(item -> toResponse(
                         item,
                         item.getEstadoAdministrativo() == AdministrativeAppointmentStatus.PAGO_VALIDADO,
@@ -153,72 +184,6 @@ public class AppointmentService implements AppointmentUseCase {
         }
     }
 
-    private PaymentValidationResult validateAndSimulatePayment(ScheduleAppointmentRequest request) {
-        if (request.getMetodoPago() == PaymentOption.TARJETA) {
-            return simulateCardAuthorization(request);
-        }
-        if (request.getMetodoPago() == PaymentOption.SEGURO) {
-            return simulateInsuranceCoverage(request);
-        }
-        throw new IllegalArgumentException("Metodo de pago no soportado");
-    }
-
-    private PaymentValidationResult simulateCardAuthorization(ScheduleAppointmentRequest request) {
-        if (isBlank(request.getBancoTarjeta())
-                || isBlank(request.getNumeroTarjeta())
-                || isBlank(request.getFechaVencimientoTarjeta())
-                || isBlank(request.getNombreTitularTarjeta())
-                || isBlank(request.getCvc())) {
-            throw new IllegalArgumentException("Para pago con tarjeta debe completar banco, numero, vencimiento, titular y CVC");
-        }
-
-        YearMonth expiry = parseExpiry(request.getFechaVencimientoTarjeta().trim());
-        YearMonth now = YearMonth.now();
-        if (expiry.isBefore(now)) {
-            throw new IllegalArgumentException("La fecha de vencimiento de la tarjeta no puede estar expirada");
-        }
-
-        // Simulacion RN07: si termina en 0000, se considera saldo insuficiente.
-        boolean approved = !request.getNumeroTarjeta().trim().endsWith("0000");
-        if (approved) {
-            return new PaymentValidationResult(true, "Pago con tarjeta validado correctamente");
-        }
-        return new PaymentValidationResult(false, "Pago con tarjeta pendiente: simulacion de saldo insuficiente");
-    }
-
-    private PaymentValidationResult simulateInsuranceCoverage(ScheduleAppointmentRequest request) {
-        if (request.getAseguradoraId() == null || isBlank(request.getNumeroPoliza())) {
-            throw new IllegalArgumentException("Para cobertura de seguro debe enviar aseguradoraId y numeroPoliza");
-        }
-
-        insuranceCatalogRepository.findById(request.getAseguradoraId())
-                .orElseThrow(() -> new IllegalArgumentException("La aseguradora enviada no existe o no esta activa"));
-
-        // Simulacion RN07: polizas que inicien con X o contengan RECHAZADA marcan rechazo.
-        String policy = request.getNumeroPoliza().trim().toUpperCase();
-        boolean approved = !(policy.startsWith("X") || policy.contains("RECHAZADA"));
-
-        if (approved) {
-            return new PaymentValidationResult(true, "Cobertura de seguro validada correctamente");
-        }
-        return new PaymentValidationResult(false, "Cobertura pendiente: simulacion de poliza no vigente/no cubierta");
-    }
-
-    private YearMonth parseExpiry(String expiry) {
-        try {
-            String[] parts = expiry.split("/");
-            int month = Integer.parseInt(parts[0]);
-            int year = 2000 + Integer.parseInt(parts[1]);
-            return YearMonth.of(year, month);
-        } catch (RuntimeException ex) {
-            throw new IllegalArgumentException("La fecha de vencimiento debe tener formato MM/yy");
-        }
-    }
-
-    private boolean isBlank(String value) {
-        return value == null || value.isBlank();
-    }
-
     private ScheduleAppointmentResponse toResponse(MedicalAppointment item, boolean pagoValidado, String message) {
         Patient patient = patientRepository.findById(item.getPacienteId()).orElse(null);
         HospitalStaff doctor = hospitalStaffRepository.findById(item.getPersonalId()).orElse(null);
@@ -252,6 +217,8 @@ public class AppointmentService implements AppointmentUseCase {
                 .estadoAdministrativo(item.getEstadoAdministrativo())
                 .pagoValidado(pagoValidado)
                 .transaccionId(buildTransactionId(item))
+                .codigoCita(item.getCodigoCita())
+                .qrContenido(item.getQrContenido())
                 .mensajeValidacion(message)
                 .build();
     }
@@ -260,8 +227,26 @@ public class AppointmentService implements AppointmentUseCase {
         return "TXN-CITA-" + item.getCitaMedicaId();
     }
 
-    private record PaymentValidationResult(boolean approved, String message) {
+    private String buildAppointmentCode(MedicalAppointment item) {
+        String datePart = item.getFechaCita() != null
+                ? item.getFechaCita().format(DateTimeFormatter.BASIC_ISO_DATE)
+                : "SINFECHA";
+        return "CITA-" + item.getCitaMedicaId() + "-" + datePart;
     }
+
+    private String buildQrPayload(MedicalAppointment item, Patient patient) {
+        String fecha = item.getFechaCita() != null ? item.getFechaCita().toString() : "N/D";
+        String hora = item.getHoraCita() != null ? item.getHoraCita().toString() : "N/D";
+        String dpi = patient != null && patient.getDpi() != null ? patient.getDpi() : "N/D";
+        String nombre = patient != null && patient.getNombreCompleto() != null ? patient.getNombreCompleto() : "N/D";
+        return "CITA_ID=" + item.getCitaMedicaId()
+                + "|CODIGO=" + item.getCodigoCita()
+                + "|FECHA=" + fecha
+                + "|HORA=" + hora
+                + "|PACIENTE_DPI=" + dpi
+                + "|PACIENTE_NOMBRE=" + nombre;
+    }
+
 }
 
 

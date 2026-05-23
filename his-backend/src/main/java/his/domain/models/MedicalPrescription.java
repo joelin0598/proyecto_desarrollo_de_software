@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Data
 @Builder
@@ -17,4 +18,5 @@ public class MedicalPrescription {
     private Long citaMedicaDetalleId;
     private String instruccionesGenerales;
     private LocalDate fechaEmision;
+    private LocalDateTime createdAt;
 }
