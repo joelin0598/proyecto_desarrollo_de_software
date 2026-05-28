@@ -71,15 +71,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        // Permitir múltiples puertos del frontend (Vite usa puertos dinámicos: 5173, 5174, 5175, 5176, 5177...)
-        config.setAllowedOrigins(List.of(
+        // Permitir frontend local y despliegues de Azure Static Web Apps.
+        config.setAllowedOriginPatterns(List.of(
                 "http://localhost:5173",
                 "http://localhost:5174",
                 "http://localhost:5175",
                 "http://localhost:5176",
                 "http://localhost:5177",
                 "http://localhost:5178",
-                "http://127.0.0.1:5173"
+                "http://127.0.0.1:5173",
+                "https://*.azurestaticapps.net"
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
