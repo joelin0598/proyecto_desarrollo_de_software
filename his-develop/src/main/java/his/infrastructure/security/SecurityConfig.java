@@ -46,7 +46,8 @@ public class SecurityConfig {
                                 "/api/catalogs/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
-                                "/swagger-ui.html"
+                                "/swagger-ui.html",
+                                "/swagger-ui-custom.html"
                         ).permitAll()
                         .requestMatchers("/api/appointments/attention/**").hasAuthority("DOCTOR")
                         .requestMatchers("/api/patients/register").hasAnyAuthority("ADMIN", "ENFERMERA", "ADMINISTRATIVO", "RECEPCION")
