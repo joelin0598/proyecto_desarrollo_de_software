@@ -1,0 +1,1453 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
+import {
+  catalogAPI,
+  triageAPI,
+  type InsuranceOption,
+  type PatientRegisterRequest,
+  type PatientGender,
+  type TriagePaidAppointmentLookupResponse,
+  type PatientGenderOption,
+  type TriageResponse,
+} from '@/services/api'
+import StatusChip from '@/components/ui/StatusChip'
+import useSidebarPreference from '@/hooks/useSidebarPreference'
+
+type TriageFormData = {
+  flowType: '' | 'WITH_APPOINTMENT' | 'WALK_IN'
+  citaMedicaId: string
+  nombreCompleto: string
+  dpi: string
+  fechaNacimiento: string
+  genero: '' | PatientGender
+  telefono: string
+  email: string
+  direccion: string
+  contactoEmergencia: string
+  telefonoEmergencia: string
+  insuranceMode: 'UNSELECTED' | 'NONE' | 'INSURED'
+  aseguradoraId?: number
+  polizaSeguro: string
+  bancoTarjeta: string
+  numeroTarjeta: string
+  fechaVencimientoTarjeta: string
+  nombreTitularTarjeta: string
+  cvcTarjeta: string
+  presionSistolica: string
+  presionDiastolica: string
+  frecuenciaCardiaca: string
+  temperatura: string
+  saturacionOxigeno: string
+  pesoKg: string
+  tallaCm: string
+}
+
+type SavedTriageData = TriageResponse & {
+  formData: TriageFormData
+}
+
+const initialData: TriageFormData = {
+  flowType: '',
+  citaMedicaId: '',
+  nombreCompleto: '',
+  dpi: '',
+  fechaNacimiento: '',
+  genero: '',
+  telefono: '',
+  email: '',
+  direccion: '',
+  contactoEmergencia: '',
+  telefonoEmergencia: '',
+  insuranceMode: 'UNSELECTED',
+  aseguradoraId: undefined,
+  polizaSeguro: '',
+  bancoTarjeta: '',
+  numeroTarjeta: '',
+  fechaVencimientoTarjeta: '',
+  nombreTitularTarjeta: '',
+  cvcTarjeta: '',
+  presionSistolica: '',
+  presionDiastolica: '',
+  frecuenciaCardiaca: '',
+  temperatura: '',
+  saturacionOxigeno: '',
+  pesoKg: '',
+  tallaCm: '',
+}
+
+type TriageStep = 'PERSONAL' | 'EMERGENCY' | 'INSURANCE' | 'VITALS'
+
+const steps: Array<{ key: TriageStep; title: string }> = [
+  { key: 'PERSONAL', title: '1. Datos personales' },
+  { key: 'EMERGENCY', title: '2. Contacto emergencia' },
+  { key: 'INSURANCE', title: '3. Validación de pago' },
+  { key: 'VITALS', title: '4. Signos vitales' },
+]
+
+const PHONE_PATTERN = /^[0-9]{8}$/
+const DPI_PATTERN = /^[0-9]{13}$/
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const CARD_NUMBER_PATTERN = /^[0-9]{13,19}$/
+const CARD_EXPIRY_PATTERN = /^(0[1-9]|1[0-2])\/[0-9]{2}$/
+const CARD_CVC_PATTERN = /^[0-9]{3,4}$/
+
+export function resolvePriority(form: TriageFormData): string {
+  const presionSistolica = Number(form.presionSistolica)
+  const frecuenciaCardiaca = Number(form.frecuenciaCardiaca)
+  const saturacion = Number(form.saturacionOxigeno)
+  const temperatura = Number(form.temperatura)
+
+  if (Number.isNaN(presionSistolica) || Number.isNaN(frecuenciaCardiaca) || Number.isNaN(saturacion) || Number.isNaN(temperatura)) {
+    return 'PENDIENTE'
+  }
+
+  // Mantener la misma regla clínica aplicada en backend (PatientFlowService.calculatePriority).
+  if (saturacion < 85 || temperatura >= 40 || frecuenciaCardiaca > 160 || presionSistolica < 80) {
+    return 'ROJO'
+  }
+  if (saturacion < 92 || temperatura >= 38.5 || frecuenciaCardiaca > 130 || presionSistolica < 90) {
+    return 'NARANJA'
+  }
+  if (saturacion < 95 || temperatura >= 37.5 || frecuenciaCardiaca > 110 || presionSistolica < 100) {
+    return 'AMARILLO'
+  }
+  return 'VERDE'
+}
+
+function validateRange(value: number, min: number, max: number): boolean {
+  return value >= min && value <= max
+}
+
+function sanitizeIntegerInput(rawValue: string, maxDigits: number, maxValue: number): string {
+  const digitsOnly = rawValue.replace(/\D/g, '').slice(0, maxDigits)
+  if (!digitsOnly) {
+    return ''
+  }
+  const numericValue = Number(digitsOnly)
+  if (Number.isNaN(numericValue)) {
+    return ''
+  }
+  return String(Math.min(numericValue, maxValue))
+}
+
+function extractAppointmentId(rawValue: string): string {
+  const value = rawValue.trim()
+  if (!value) return ''
+
+  const qrMatch = value.match(/CITA_ID\s*=\s*(\d+)/i)
+  if (qrMatch?.[1]) return qrMatch[1]
+
+  const codeMatch = value.match(/CITA-(\d+)-/i)
+  if (codeMatch?.[1]) return codeMatch[1]
+
+  const directMatch = value.match(/^\d+$/)
+  if (directMatch?.[0]) return directMatch[0]
+
+  const firstNumber = value.match(/(\d{1,12})/)
+  return firstNumber?.[1] ?? ''
+}
+
+function getPriorityStatusChip(
+  priority: string,
+  isVitalsStep: boolean = false,
+): { label: string; tone: 'emerald' | 'ghost' | 'orange' | 'red' | 'slate' | 'yellow' } {
+  if (!isVitalsStep || priority === 'PENDIENTE') {
+    return { label: 'En evaluación', tone: 'ghost' }
+  }
+  switch (priority) {
+    case 'ROJO':
+      return { label: `Prioridad: ${priority}`, tone: 'red' }
+    case 'NARANJA':
+      return { label: `Prioridad: ${priority}`, tone: 'orange' }
+    case 'AMARILLO':
+      return { label: `Prioridad: ${priority}`, tone: 'yellow' }
+    case 'VERDE':
+      return { label: `Prioridad: ${priority}`, tone: 'emerald' }
+    default:
+      return { label: 'En evaluación', tone: 'ghost' }
+  }
+}
+
+function validateStep(formData: TriageFormData, step: TriageStep): string | null {
+  if (step === 'PERSONAL') {
+    if (formData.flowType === 'WITH_APPOINTMENT') {
+      const citaId = Number(formData.citaMedicaId)
+      if (!Number.isInteger(citaId) || citaId <= 0) {
+        return 'Debes ingresar un citaMedicaId valido para paciente con cita programada.'
+      }
+      return null
+    }
+    if (!formData.nombreCompleto.trim()) return 'El nombre completo es obligatorio.'
+    if (/\d/.test(formData.nombreCompleto)) return 'El nombre completo no puede contener numeros.'
+    if (!DPI_PATTERN.test(formData.dpi.trim())) return 'El DPI debe tener exactamente 13 digitos.'
+    if (!formData.fechaNacimiento) return 'La fecha de nacimiento es obligatoria.'
+    const birthDate = new Date(formData.fechaNacimiento)
+    if (birthDate > new Date()) return 'La fecha de nacimiento no puede ser futura.'
+    if (!formData.genero) return 'Debes seleccionar un genero.'
+    if (!PHONE_PATTERN.test(formData.telefono.trim())) return 'El telefono debe tener exactamente 8 digitos.'
+    if (!formData.email.trim()) return 'El correo electronico es obligatorio.'
+    if (!EMAIL_PATTERN.test(formData.email.trim())) return 'Ingresa un correo electronico valido.'
+    if (!formData.direccion.trim()) return 'La direccion es obligatoria.'
+    return null
+  }
+
+  if (step === 'EMERGENCY') {
+    if (formData.flowType === 'WITH_APPOINTMENT') {
+      return null
+    }
+    if (!formData.contactoEmergencia.trim()) return 'El nombre del contacto de emergencia es obligatorio.'
+    if (/\d/.test(formData.contactoEmergencia)) return 'El nombre del contacto no puede contener numeros.'
+    if (!PHONE_PATTERN.test(formData.telefonoEmergencia.trim())) {
+      return 'El telefono de emergencia debe tener exactamente 8 digitos.'
+    }
+    return null
+  }
+
+  if (step === 'INSURANCE') {
+    if (!formData.flowType) {
+      return 'Debes indicar si el paciente llega con cita programada o es walk-in.'
+    }
+    if (formData.flowType === 'WITH_APPOINTMENT') {
+      const citaId = Number(formData.citaMedicaId)
+      if (!Number.isInteger(citaId) || citaId <= 0) {
+        return 'Debes ingresar un citaMedicaId valido para paciente con cita programada.'
+      }
+      return null
+    }
+    if (formData.insuranceMode === 'UNSELECTED') {
+      return 'Debes seleccionar una opcion de pago para paciente walk-in: seguro o tarjeta.'
+    }
+    if (formData.insuranceMode === 'INSURED' && !formData.aseguradoraId) {
+      return 'Debes seleccionar una aseguradora disponible.'
+    }
+    if (formData.insuranceMode === 'INSURED' && !formData.polizaSeguro.trim()) {
+      return 'El numero de poliza es obligatorio cuando aplica seguro.'
+    }
+    if (formData.insuranceMode === 'NONE') {
+      if (!formData.bancoTarjeta.trim()) return 'El banco propietario de la tarjeta es obligatorio.'
+      if (!CARD_NUMBER_PATTERN.test(formData.numeroTarjeta.trim())) return 'El numero de tarjeta debe tener entre 13 y 19 digitos.'
+      if (!CARD_EXPIRY_PATTERN.test(formData.fechaVencimientoTarjeta.trim())) return 'La fecha de vencimiento debe estar en formato MM/YY.'
+      if (!formData.nombreTitularTarjeta.trim()) return 'El nombre del titular es obligatorio.'
+      if (!CARD_CVC_PATTERN.test(formData.cvcTarjeta.trim())) return 'El CVC debe tener 3 o 4 digitos.'
+    }
+    return null
+  }
+
+  const presionSistolica = Number(formData.presionSistolica)
+  const presionDiastolica = Number(formData.presionDiastolica)
+  const frecuenciaCardiaca = Number(formData.frecuenciaCardiaca)
+  const temperatura = Number(formData.temperatura)
+  const saturacionOxigeno = Number(formData.saturacionOxigeno)
+  const pesoKg = Number(formData.pesoKg)
+  const tallaCm = Number(formData.tallaCm)
+
+  if (!validateRange(presionSistolica, 50, 300)) return 'La presion sistolica esta fuera de rango clinico.'
+  if (!validateRange(presionDiastolica, 30, 200)) return 'La presion diastolica esta fuera de rango clinico.'
+  if (presionDiastolica >= presionSistolica) return 'La presion diastolica no puede ser mayor o igual a la sistolica.'
+  if (!validateRange(frecuenciaCardiaca, 20, 250)) return 'La frecuencia cardiaca esta fuera de rango clinico.'
+  if (!validateRange(temperatura, 10, 50)) return 'La temperatura debe estar entre 10 y 50 grados.'
+  if (!validateRange(saturacionOxigeno, 0, 100)) return 'La saturacion de oxigeno debe estar entre 0 y 100.'
+  if (!validateRange(pesoKg, 1, 999)) return 'El peso debe estar entre 1 y 999 kg.'
+  if (!validateRange(tallaCm, 30, 300)) return 'La talla esta fuera de rango clinico.'
+
+  return null
+}
+
+const TriageIntake: React.FC = () => {
+  const [searchParams] = useSearchParams()
+  const [formData, setFormData] = useState<TriageFormData>(initialData)
+  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-triage-intake', false)
+  const [genderOptions, setGenderOptions] = useState<PatientGenderOption[]>([])
+  const [insuranceOptions, setInsuranceOptions] = useState<InsuranceOption[]>([])
+  const [catalogLoading, setCatalogLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [checkingAvailability, setCheckingAvailability] = useState(false)
+  const [error, setError] = useState('')
+  const [savedTriageData, setSavedTriageData] = useState<SavedTriageData | null>(null)
+  const [paidAppointmentLookup, setPaidAppointmentLookup] = useState<TriagePaidAppointmentLookupResponse | null>(null)
+  const [paidAppointmentLookupLoading, setPaidAppointmentLookupLoading] = useState(false)
+  const [paidAppointmentLookupMessage, setPaidAppointmentLookupMessage] = useState('')
+  const [preloadedFromDpiSearch, setPreloadedFromDpiSearch] = useState(false)
+  const submitLockRef = useRef(false)
+
+  const currentStep = steps[currentStepIndex]
+  const isVitalsStep = currentStep.key === 'VITALS'
+  const priority = useMemo(() => resolvePriority(formData), [formData])
+  const genderLabelMap = useMemo(
+    () => Object.fromEntries(genderOptions.map((option) => [option.code, option.label])) as Record<PatientGender, string>,
+    [genderOptions]
+  )
+  const insuranceNameMap = useMemo(
+    () => Object.fromEntries(insuranceOptions.map((option) => [String(option.id), option.nombre])) as Record<string, string>,
+    [insuranceOptions]
+  )
+
+  useEffect(() => {
+    const loadCatalogs = async () => {
+      try {
+        const [gendersResponse, insurancesResponse] = await Promise.all([
+          catalogAPI.patientGenders(),
+          catalogAPI.insurances(),
+        ])
+        setGenderOptions(gendersResponse.data)
+        setInsuranceOptions(insurancesResponse.data)
+      } catch {
+        setError('No se pudieron cargar los catalogos de genero y aseguradoras.')
+      } finally {
+        setCatalogLoading(false)
+      }
+    }
+
+    void loadCatalogs()
+  }, [])
+
+  // Procesar parámetros de URL para casos especiales (ej: búsqueda por DPI)
+  useEffect(() => {
+    const mode = searchParams.get('mode') || 'WALK_IN'
+    const skipToInsurance = searchParams.get('skipToInsurance') === 'true'
+    const patientDataJson = searchParams.get('patientDataJson')
+    const dpi = searchParams.get('dpi') || ''
+
+    const flowType = mode === 'WITH_APPOINTMENT' ? 'WITH_APPOINTMENT' : 'WALK_IN'
+    setFormData((prev) => ({
+      ...prev,
+      flowType,
+      dpi: flowType === 'WALK_IN' && dpi ? dpi.slice(0, 13) : prev.dpi,
+    }))
+    setCurrentStepIndex(0)
+
+    if (skipToInsurance && patientDataJson) {
+      try {
+        const patientData = JSON.parse(patientDataJson)
+        setFormData((prev) => ({
+          ...prev,
+          ...patientData,
+          flowType: 'WALK_IN',
+        }))
+        setPreloadedFromDpiSearch(true)
+        setCurrentStepIndex(steps.findIndex((s) => s.key === 'INSURANCE'))
+      } catch (err) {
+        console.error('Error al procesar datos del paciente:', err)
+      }
+    }
+  }, [searchParams])
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    setError('')
+  }
+
+  const handleNameChange =
+    (fieldName: 'nombreCompleto' | 'contactoEmergencia') =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const sanitized = e.target.value.replace(/\d/g, '')
+        setFormData((prev) => ({ ...prev, [fieldName]: sanitized }))
+        setError('')
+      }
+
+  const handleDpiChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.replace(/\D/g, '').slice(0, 13)
+    setFormData((prev) => ({ ...prev, dpi: sanitized }))
+    setError('')
+  }
+
+  const handlePhoneChange =
+    (fieldName: 'telefono' | 'telefonoEmergencia') =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const sanitized = e.target.value.replace(/\D/g, '').slice(0, 8)
+        setFormData((prev) => ({ ...prev, [fieldName]: sanitized }))
+        setError('')
+      }
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({ ...prev, [name]: value }))
+    setError('')
+  }
+
+  const handleLimitedIntegerChange =
+    (
+      name:
+        | 'frecuenciaCardiaca'
+        | 'presionDiastolica'
+        | 'presionSistolica'
+        | 'saturacionOxigeno'
+        | 'pesoKg'
+        | 'tallaCm'
+        | 'temperatura',
+      maxDigits: number,
+      maxValue: number
+    ) =>
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const sanitizedValue = sanitizeIntegerInput(e.target.value, maxDigits, maxValue)
+        setFormData((prev) => ({ ...prev, [name]: sanitizedValue }))
+        setError('')
+      }
+
+  const selectInsurance = (insuranceId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      insuranceMode: 'INSURED',
+      aseguradoraId: insuranceId,
+      bancoTarjeta: '',
+      numeroTarjeta: '',
+      fechaVencimientoTarjeta: '',
+      nombreTitularTarjeta: '',
+      cvcTarjeta: '',
+    }))
+    setError('')
+  }
+
+  const selectNoInsurance = () => {
+    setFormData((prev) => ({
+      ...prev,
+      insuranceMode: 'NONE',
+      aseguradoraId: undefined,
+      polizaSeguro: '',
+    }))
+    setError('')
+  }
+
+  const selectFlowWithAppointment = () => {
+    setFormData((prev) => ({
+      ...prev,
+      flowType: 'WITH_APPOINTMENT',
+      insuranceMode: 'UNSELECTED',
+      aseguradoraId: undefined,
+      polizaSeguro: '',
+      bancoTarjeta: '',
+      numeroTarjeta: '',
+      fechaVencimientoTarjeta: '',
+      nombreTitularTarjeta: '',
+      cvcTarjeta: '',
+    }))
+    setError('')
+  }
+
+  const selectFlowWalkIn = () => {
+    setFormData((prev) => ({
+      ...prev,
+      flowType: 'WALK_IN',
+      citaMedicaId: '',
+      insuranceMode: prev.insuranceMode === 'UNSELECTED' ? 'NONE' : prev.insuranceMode,
+    }))
+    setError('')
+  }
+
+  const handleCitaMedicaIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const extracted = extractAppointmentId(e.target.value)
+    const sanitized = extracted.slice(0, 12)
+    setFormData((prev) => ({ ...prev, citaMedicaId: sanitized }))
+    setError('')
+  }
+
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.replace(/\D/g, '').slice(0, 19)
+    setFormData((prev) => ({ ...prev, numeroTarjeta: sanitized }))
+    setError('')
+  }
+
+  const handleCardExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const digits = e.target.value.replace(/\D/g, '').slice(0, 4)
+    const formatted = digits.length >= 3 ? `${digits.slice(0, 2)}/${digits.slice(2)}` : digits
+    setFormData((prev) => ({ ...prev, fechaVencimientoTarjeta: formatted }))
+    setError('')
+  }
+
+  const handleCardCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const sanitized = e.target.value.replace(/\D/g, '').slice(0, 4)
+    setFormData((prev) => ({ ...prev, cvcTarjeta: sanitized }))
+    setError('')
+  }
+
+  const lookupPaidAppointmentById = async () => {
+    const citaMedicaId = Number(formData.citaMedicaId)
+    if (!Number.isInteger(citaMedicaId) || citaMedicaId <= 0) {
+      setPaidAppointmentLookup(null)
+      setPaidAppointmentLookupMessage('Ingresa un ID de cita valido antes de buscar la cita pagada.')
+      return
+    }
+
+    setPaidAppointmentLookupLoading(true)
+    setPaidAppointmentLookupMessage('')
+    setError('')
+    try {
+      const { data } = await triageAPI.findPaidAppointmentById(citaMedicaId)
+      setPaidAppointmentLookup(data)
+      setFormData((prev) => ({
+        ...prev,
+        citaMedicaId: String(data.citaMedicaId),
+        nombreCompleto: data.pacienteNombre || prev.nombreCompleto,
+        dpi: data.pacienteDpi || prev.dpi,
+        fechaNacimiento: data.fechaNacimiento || prev.fechaNacimiento,
+        genero: (data.genero as PatientGender | null) || prev.genero,
+        telefono: data.telefono || prev.telefono,
+        email: data.emailContacto || prev.email,
+        direccion: data.direccion || prev.direccion,
+        contactoEmergencia: data.contactoEmergencia || prev.contactoEmergencia,
+        telefonoEmergencia: data.telefonoEmergencia || prev.telefonoEmergencia,
+      }))
+      setPaidAppointmentLookupMessage('Cita pagada encontrada y validada por ID.')
+    } catch (err: any) {
+      const status = err?.response?.status
+      setPaidAppointmentLookup(null)
+      if (status === 404) {
+        setPaidAppointmentLookupMessage('No se encontró cita PROGRAMADA con PAGO_VALIDADO para el ID ingresado.')
+      } else {
+        const backendMsg = err?.response?.data?.errorMessage || err?.response?.data?.message
+        setPaidAppointmentLookupMessage(backendMsg || 'No se pudo buscar la cita pagada por ID.')
+      }
+    } finally {
+      setPaidAppointmentLookupLoading(false)
+    }
+  }
+
+   const goNextStep = async () => {
+     if (currentStep.key === 'PERSONAL' && formData.flowType === 'WITH_APPOINTMENT') {
+       const validationError = validateStep(formData, 'PERSONAL')
+       if (validationError) {
+         setError(validationError)
+         return
+       }
+       setCurrentStepIndex(steps.findIndex((s) => s.key === 'VITALS'))
+       setError('')
+       return
+     }
+
+     // Si viene de búsqueda por DPI y está en PERSONAL, salta directamente a INSURANCE
+     if (currentStep.key === 'PERSONAL' && preloadedFromDpiSearch) {
+       const validationError = validateStep(formData, 'PERSONAL')
+       if (validationError) {
+         setError(validationError)
+         return
+       }
+       setCurrentStepIndex(steps.findIndex((s) => s.key === 'INSURANCE'))
+       setError('')
+       return
+     }
+
+     // Si viene de búsqueda por DPI y está en EMERGENCY, salta directamente a INSURANCE
+     if (currentStep.key === 'EMERGENCY' && preloadedFromDpiSearch) {
+       const validationError = validateStep(formData, 'EMERGENCY')
+       if (validationError) {
+         setError(validationError)
+         return
+       }
+       setCurrentStepIndex(steps.findIndex((s) => s.key === 'INSURANCE'))
+       setError('')
+       return
+     }
+
+     const validationError = validateStep(formData, currentStep.key)
+     if (validationError) {
+       setError(validationError)
+       return
+     }
+
+     if (currentStep.key === 'PERSONAL' && formData.flowType === 'WALK_IN') {
+       setCheckingAvailability(true)
+       try {
+         const { data } = await triageAPI.checkAvailability(formData.dpi, formData.email)
+         if (!data.available) {
+           setError(data.message || 'El paciente ya fue registrado previamente.')
+           return
+         }
+       } catch (err: any) {
+         const backendMsg = err?.response?.data?.errorMessage || err?.response?.data?.message
+         setError(backendMsg || 'No se pudo validar disponibilidad de DPI/correo. Intenta nuevamente.')
+         return
+       } finally {
+         setCheckingAvailability(false)
+       }
+     }
+
+     if (currentStepIndex < steps.length - 1) {
+       setCurrentStepIndex((prev) => prev + 1)
+       setError('')
+     }
+   }
+
+  const goPreviousStep = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex((prev) => prev - 1)
+      setError('')
+    }
+  }
+
+  // Permite regresar a cualquier paso ya visitado sin perder lo capturado.
+  const goToStep = (targetIndex: number) => {
+    if (targetIndex <= currentStepIndex) {
+      setCurrentStepIndex(targetIndex)
+      setError('')
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (submitLockRef.current || submitting || savedTriageData) {
+      return
+    }
+
+    const validationError =
+      formData.flowType === 'WITH_APPOINTMENT'
+        ? validateStep(formData, 'PERSONAL') ?? validateStep(formData, 'VITALS')
+        : validateStep(formData, 'PERSONAL')
+          ?? validateStep(formData, 'EMERGENCY')
+          ?? validateStep(formData, 'INSURANCE')
+          ?? validateStep(formData, 'VITALS')
+
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    submitLockRef.current = true
+    setSubmitting(true)
+    setError('')
+    let savedSuccessfully = false
+
+    try {
+      const isWithAppointment = formData.flowType === 'WITH_APPOINTMENT'
+      const isWalkInInsurance = formData.flowType === 'WALK_IN' && formData.insuranceMode === 'INSURED'
+      const isWalkInCard = formData.flowType === 'WALK_IN' && formData.insuranceMode === 'NONE'
+
+      const triagePayload = {
+        citaMedicaId: isWithAppointment ? Number(formData.citaMedicaId) : undefined,
+        presionSistolica: Number(formData.presionSistolica),
+        presionDiastolica: Number(formData.presionDiastolica),
+        frecuenciaCardiaca: Number(formData.frecuenciaCardiaca),
+        temperatura: Number(formData.temperatura),
+        saturacionOxigeno: Number(formData.saturacionOxigeno),
+        pesoKg: Number(formData.pesoKg),
+        tallaCm: Number(formData.tallaCm),
+      }
+
+      let result: TriageResponse
+
+      if (isWithAppointment) {
+        const { data } = await triageAPI.create(triagePayload)
+        result = data as TriageResponse
+      } else {
+        const registerPayload: PatientRegisterRequest = {
+          nombreCompleto: formData.nombreCompleto,
+          dpi: formData.dpi,
+          fechaNacimiento: formData.fechaNacimiento || undefined,
+          genero: formData.genero as PatientGender,
+          emailContacto: formData.email || undefined,
+          telefono: formData.telefono || undefined,
+          direccion: formData.direccion || undefined,
+          contactoEmergencia: formData.contactoEmergencia,
+          telefonoEmergencia: formData.telefonoEmergencia,
+          metodoPago: isWalkInInsurance ? 'SEGURO' : 'TARJETA',
+          aseguradoraId: isWalkInInsurance ? formData.aseguradoraId : undefined,
+          polizaSeguro: isWalkInInsurance ? formData.polizaSeguro || undefined : undefined,
+          bancoTarjeta: isWalkInCard ? formData.bancoTarjeta || undefined : undefined,
+          numeroTarjeta: isWalkInCard ? formData.numeroTarjeta || undefined : undefined,
+          fechaVencimientoTarjeta: isWalkInCard ? formData.fechaVencimientoTarjeta || undefined : undefined,
+          nombreTitularTarjeta: isWalkInCard ? formData.nombreTitularTarjeta || undefined : undefined,
+          cvc: isWalkInCard ? formData.cvcTarjeta || undefined : undefined,
+        }
+
+        const registerResponse = await triageAPI.register(registerPayload)
+        const { data } = await triageAPI.create({
+          ...triagePayload,
+          citaMedicaId: registerResponse.data.citaMedicaId,
+        })
+        result = data as TriageResponse
+      }
+
+      setSavedTriageData({
+        ...result,
+        formData: { ...formData },
+      })
+      savedSuccessfully = true
+    } catch (err: any) {
+      const status = err?.response?.status
+      const backendMsg = err?.response?.data?.errorMessage || err?.response?.data?.message
+      if (status === 401 || status === 403) {
+        setError('No tienes permisos para registrar triaje con este usuario. Inicia sesión con un perfil autorizado.')
+      } else if (!err?.response) {
+        setError('No se pudo conectar con el backend. Verifica que el servidor esté activo y la red disponible.')
+      } else {
+        setError(backendMsg || 'Error al registrar triaje. Verifica la conexión y los datos.')
+      }
+    } finally {
+      if (!savedSuccessfully) {
+        submitLockRef.current = false
+      }
+      setSubmitting(false)
+    }
+  }
+
+  const handleReset = () => {
+    submitLockRef.current = false
+    setFormData(initialData)
+    setCurrentStepIndex(0)
+    setError('')
+    setSavedTriageData(null)
+    setPaidAppointmentLookup(null)
+    setPaidAppointmentLookupMessage('')
+  }
+
+  const priorityChip = getPriorityStatusChip(priority, isVitalsStep)
+
+  return (
+    <div className="h-screen bg-gray-100 overflow-hidden flex">
+      {/* Sidebar reutilizable con patrón azul claro */}
+      <aside className={`bg-blue-100/85 border-r border-blue-200 shadow-sm p-4 flex flex-col justify-between shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-64'}`}>
+        <div>
+          <div className={`mb-7 ${sidebarCollapsed ? 'flex flex-col items-center gap-3' : ''}`}>
+            {!sidebarCollapsed && (
+              <>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
+                <h1 className="text-xl font-bold text-slate-900 mt-1">Triaje</h1>
+                <p className="text-xs text-slate-600 mt-1">Ingreso y clasificación</p>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-blue-200 font-semibold text-xs"
+              title={sidebarCollapsed ? 'Expandir menú' : 'Ocultar menú'}
+            >
+              {sidebarCollapsed ? '>>' : '<<'}
+            </button>
+          </div>
+
+          {/* Navegación de fases */}
+          <nav className="space-y-2">
+            {steps.map((step, index) => {
+              const isActive = index === currentStepIndex
+              const isVisited = index < currentStepIndex
+              const isClickable = index <= currentStepIndex
+              const label = step.title.replace(/^\d+\.\s/, '')
+
+              return (
+                <button
+                  key={step.key}
+                  type="button"
+                  onClick={() => goToStep(index)}
+                  disabled={!isClickable}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition ${
+                    isActive
+                      ? 'bg-white text-blue-700 border border-blue-200 font-semibold shadow-sm'
+                      : isVisited
+                        ? 'hover:bg-white/50 text-slate-700'
+                        : isClickable
+                          ? 'hover:bg-white/50 text-slate-700'
+                          : 'text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : isVisited
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-slate-300 text-slate-600'
+                    }`}>
+                      {isVisited ? '✓' : index + 1}
+                    </span>
+                    {!sidebarCollapsed && <span>{label}</span>}
+                  </div>
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+
+        {/* Footer de sidebar */}
+        <div className="space-y-3">
+          <Link
+            to="/admin"
+            className="w-full px-4 py-2.5 rounded-xl border border-blue-200 bg-gradient-to-r from-white to-blue-50 hover:from-blue-50 hover:to-white text-blue-700 font-semibold text-sm text-center shadow-sm transition"
+            title="Regresar al dashboard"
+          >
+            {sidebarCollapsed ? '<<' : '<< Regresar al Dashboard'}
+          </Link>
+        </div>
+      </aside>
+
+      <main className={`flex-1 p-6 lg:p-8 flex justify-center overflow-auto ${savedTriageData ? 'items-start' : 'items-center'}`}>
+        <section className="w-full max-w-4xl bg-white rounded-xl shadow-md border border-gray-100 p-6 lg:p-8">
+          {/* Pantalla de confirmación después de guardar */}
+          {savedTriageData && (
+            <div className="space-y-6">
+              {(() => {
+                const summaryLookup = paidAppointmentLookup
+                const resolvedGender = (savedTriageData.formData.genero || summaryLookup?.genero || '') as PatientGender | ''
+                const resolvedGenderLabel = resolvedGender
+                  ? (genderLabelMap[resolvedGender as PatientGender] || resolvedGender)
+                  : 'No especificado'
+
+                return (
+                  <>
+              {/* Encabezado de confirmación */}
+              <div className="flex items-start justify-between pb-6 border-b-2 border-emerald-200">
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-emerald-700">Triaje Registrado Correctamente</h2>
+                      <p className="text-sm text-gray-600 mt-1">El paciente ha sido ingresado al sistema exitosamente</p>
+                    </div>
+                  </div>
+                </div>
+                <StatusChip
+                  label={getPriorityStatusChip(savedTriageData.prioridad, true).label}
+                  tone={getPriorityStatusChip(savedTriageData.prioridad, true).tone}
+                />
+              </div>
+
+              {/* Ficha del paciente */}
+              <div className="space-y-4">
+                {/* IDs de registro */}
+                {(() => {
+                  const prioridadColors: Record<string, { card: string; title: string; value: string }> = {
+                    ROJO:    { card: 'bg-red-50 border-red-200',       title: 'text-red-600',     value: 'text-red-900'     },
+                    NARANJA: { card: 'bg-orange-50 border-orange-200', title: 'text-orange-600',  value: 'text-orange-900'  },
+                    AMARILLO:{ card: 'bg-yellow-50 border-yellow-300', title: 'text-yellow-700',  value: 'text-yellow-900'  },
+                    VERDE:   { card: 'bg-emerald-50 border-emerald-200',title:'text-emerald-600', value: 'text-emerald-900' },
+                  }
+                  const alertaColor = prioridadColors[savedTriageData.prioridad] ?? { card: 'bg-slate-50 border-slate-200', title: 'text-slate-600', value: 'text-slate-900' }
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+                        <p className="text-xs text-blue-600 font-semibold uppercase mb-1">Paciente ID</p>
+                        <p className="text-xl font-bold text-blue-900">{savedTriageData.pacienteId}</p>
+                      </div>
+                      <div className="rounded-lg bg-purple-50 border border-purple-200 p-4">
+                        <p className="text-xs text-purple-600 font-semibold uppercase mb-1">Signos Vitales ID</p>
+                        <p className="text-xl font-bold text-purple-900">{savedTriageData.signosVitalesId}</p>
+                      </div>
+                      <div className={`rounded-lg border p-4 ${alertaColor.card}`}>
+                        <p className={`text-xs font-semibold uppercase mb-1 ${alertaColor.title}`}>Alerta Emergencia</p>
+                        <p className={`text-xl font-bold ${alertaColor.value}`}>{savedTriageData.alertaEmergencia ? ' SÍ' : '✓ No'}</p>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Datos del paciente */}
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                    <h3 className="font-semibold text-gray-900">Información del Paciente</h3>
+                  </div>
+                  <div className="divide-y divide-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-4">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Nombre completo</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.nombreCompleto || savedTriageData.nombreCompleto || summaryLookup?.pacienteNombre || 'No especificado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">DPI</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.dpi || savedTriageData.dpi || summaryLookup?.pacienteDpi || 'No especificado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Fecha de nacimiento</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.fechaNacimiento || summaryLookup?.fechaNacimiento || 'No especificada'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Género</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{resolvedGenderLabel}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Teléfono</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.telefono || summaryLookup?.telefono || 'No especificado'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Correo</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.email || summaryLookup?.emailContacto || 'No especificado'}</p>
+                      </div>
+                      <div className="md:col-span-2">
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Dirección</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.direccion || summaryLookup?.direccion || 'No especificada'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contacto de emergencia */}
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                    <h3 className="font-semibold text-gray-900">Contacto de Emergencia</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-4">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Nombre</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.contactoEmergencia || summaryLookup?.contactoEmergencia || 'No especificado'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Teléfono</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.telefonoEmergencia || summaryLookup?.telefonoEmergencia || 'No especificado'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informacion de validacion de pago */}
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                    <h3 className="font-semibold text-gray-900">Validacion de pago</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-6 py-4">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Origen de atencion</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">
+                        {savedTriageData.formData.flowType === 'WITH_APPOINTMENT' ? 'Paciente con cita programada' : 'Paciente walk-in'}
+                      </p>
+                    </div>
+                    {savedTriageData.formData.flowType === 'WITH_APPOINTMENT' && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Cita médica ID</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.citaMedicaId ?? savedTriageData.formData.citaMedicaId}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Modalidad</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">
+                        {savedTriageData.formData.flowType === 'WITH_APPOINTMENT'
+                          ? 'Pago validado en cita médica'
+                          : savedTriageData.formData.insuranceMode === 'NONE'
+                            ? 'Sin seguro (tarjeta)'
+                            : savedTriageData.formData.insuranceMode === 'INSURED'
+                              ? 'Con seguro'
+                              : 'No especificado'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Resultado</p>
+                      <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.mensajePago}</p>
+                    </div>
+                    {savedTriageData.formData.flowType === 'WALK_IN' && savedTriageData.formData.insuranceMode === 'INSURED' && savedTriageData.formData.aseguradoraId && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Aseguradora</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{insuranceNameMap[String(savedTriageData.formData.aseguradoraId)] || `ID ${savedTriageData.formData.aseguradoraId}`}</p>
+                      </div>
+                    )}
+                    {savedTriageData.formData.flowType === 'WALK_IN' && savedTriageData.formData.insuranceMode === 'INSURED' && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 uppercase">Póliza</p>
+                        <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.polizaSeguro}</p>
+                      </div>
+                    )}
+                    {savedTriageData.formData.flowType === 'WALK_IN' && savedTriageData.formData.insuranceMode === 'NONE' && (
+                      <>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase">Banco</p>
+                          <p className="text-sm text-gray-900 font-medium mt-1">{savedTriageData.formData.bancoTarjeta}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-gray-500 uppercase">Tarjeta</p>
+                          <p className="text-sm text-gray-900 font-medium mt-1">**** **** **** {savedTriageData.formData.numeroTarjeta.slice(-4)}</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* Signos vitales */}
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                    <h3 className="font-semibold text-gray-900">Signos Vitales</h3>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 py-4">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">P. Sistólica</p>
+                      <p className="text-lg font-bold text-blue-600 mt-1">{savedTriageData.presionSistolica} mmHg</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">P. Diastólica</p>
+                      <p className="text-lg font-bold text-blue-600 mt-1">{savedTriageData.presionDiastolica} mmHg</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">F. Cardíaca</p>
+                      <p className="text-lg font-bold text-green-600 mt-1">{savedTriageData.frecuenciaCardiaca} bpm</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Temperatura</p>
+                      <p className="text-lg font-bold text-orange-600 mt-1">{savedTriageData.temperatura}°C</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">O2</p>
+                      <p className="text-lg font-bold text-purple-600 mt-1">{savedTriageData.saturacionOxigeno}%</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Peso</p>
+                      <p className="text-lg font-bold text-gray-600 mt-1">{savedTriageData.pesoKg} kg</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Talla</p>
+                      <p className="text-lg font-bold text-gray-600 mt-1">{savedTriageData.tallaCm} cm</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botones de acción */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleReset}
+                  className="flex-1 px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition"
+                >
+                  Registrar Nuevo Triaje
+                </button>
+                <Link
+                  to="/admin"
+                  className="flex-1 px-4 py-3 rounded-xl border border-blue-200 bg-gradient-to-r from-white to-blue-50 text-blue-700 font-semibold hover:from-blue-50 hover:to-white transition text-center"
+                >
+                  {'<< Regresar al Dashboard'}
+                </Link>
+              </div>
+                  </>
+                )
+              })()}
+            </div>
+          )}
+
+          {/* Formulario normal si aún no se ha guardado */}
+          {!savedTriageData && (
+            <>
+              <div className="mb-6 flex items-start justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Clasificación de Urgencia</h2>
+                  <p className="text-sm text-gray-500 mt-1">Fase: {currentStep.title}</p>
+                </div>
+                <StatusChip label={priorityChip.label} tone={priorityChip.tone} />
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && <div className="text-sm bg-red-100 text-red-700 border border-red-200 rounded px-3 py-2">{error}</div>}
+
+              {currentStep.key === 'PERSONAL' && (
+                 <div className="space-y-4">
+                   <div className="flex items-center justify-between gap-3">
+                     <div>
+                       <p className="text-xs font-semibold text-gray-500 uppercase">Tipo de ingreso</p>
+                       <p className="text-sm font-medium text-gray-900 mt-1">
+                         {formData.flowType === 'WITH_APPOINTMENT'
+                           ? 'Llega con cita programada'
+                           : 'Ingreso por Triaje (sin cita)'}
+                       </p>
+                     </div>
+                     <span className="text-xs rounded-full px-3 py-1 bg-slate-100 text-slate-700 font-semibold">
+                       Fase {currentStepIndex + 1} de {steps.length}
+                     </span>
+                   </div>
+
+                   {preloadedFromDpiSearch && (
+                     <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
+                       <p className="text-sm text-emerald-900">
+                         <span className="font-semibold">✓ Datos verificados:</span> Estos datos fueron encontrados en el sistema mediante búsqueda por DPI y están marcados como de "solo lectura".
+                       </p>
+                     </div>
+                   )}
+
+                   {formData.flowType === 'WITH_APPOINTMENT' && (
+                     <div className="space-y-3">
+                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                         <div className="md:col-span-2">
+                           <label className="block text-xs font-semibold text-gray-600 mb-1">Cita medica ID</label>
+                           <input
+                             name="citaMedicaId"
+                             value={formData.citaMedicaId}
+                             onChange={handleCitaMedicaIdChange}
+                             maxLength={12}
+                             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                             placeholder="ID de cita o contenido del QR"
+                           />
+                         </div>
+                         <div className="flex items-end">
+                           <button
+                             type="button"
+                             onClick={lookupPaidAppointmentById}
+                             disabled={paidAppointmentLookupLoading}
+                             className="w-full px-3 py-2 text-sm rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 disabled:cursor-not-allowed"
+                           >
+                             {paidAppointmentLookupLoading ? 'Buscando...' : 'Buscar cita pagada por ID'}
+                           </button>
+                         </div>
+                       </div>
+
+                       {paidAppointmentLookupMessage && (
+                         <div className="text-xs rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-700">
+                           {paidAppointmentLookupMessage}
+                         </div>
+                       )}
+
+                       {paidAppointmentLookup && (
+                         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs text-emerald-900 grid grid-cols-1 md:grid-cols-3 gap-2">
+                           <div><span className="font-semibold">Cita:</span> #{paidAppointmentLookup.citaMedicaId}</div>
+                           <div><span className="font-semibold">Fecha:</span> {paidAppointmentLookup.fechaCita || 'N/D'}</div>
+                           <div><span className="font-semibold">Hora:</span> {paidAppointmentLookup.horaCita || 'N/D'}</div>
+                           <div className="md:col-span-2"><span className="font-semibold">Motivo:</span> {paidAppointmentLookup.motivoConsulta || 'N/D'}</div>
+                           <div><span className="font-semibold">Estado:</span> {paidAppointmentLookup.estadoAdministrativo || 'N/D'}</div>
+                         </div>
+                       )}
+                     </div>
+                   )}
+
+                   {formData.flowType !== 'WITH_APPOINTMENT' && (
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre completo</label>
+                     <input name="nombreCompleto" value={formData.nombreCompleto} onChange={handleNameChange('nombreCompleto')} disabled={preloadedFromDpiSearch} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">DPI (CUI)</label>
+                     <input name="dpi" value={formData.dpi} onChange={handleDpiChange} disabled={preloadedFromDpiSearch} inputMode="numeric" maxLength={13} pattern="^[0-9]{13}$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha de nacimiento</label>
+                     <input type="date" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={handleChange} disabled={preloadedFromDpiSearch} max={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Genero</label>
+                     <select
+                       name="genero"
+                       value={formData.genero}
+                       onChange={handleSelectChange}
+                       disabled={catalogLoading || preloadedFromDpiSearch}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                     >
+                       <option value="">{catalogLoading ? 'Cargando...' : 'Selecciona genero'}</option>
+                       {genderOptions.map((option) => (
+                         <option key={option.code} value={option.code}>{option.label}</option>
+                       ))}
+                     </select>
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Telefono</label>
+                     <input name="telefono" value={formData.telefono} onChange={handlePhoneChange('telefono')} disabled={preloadedFromDpiSearch} inputMode="numeric" maxLength={8} pattern="^[0-9]{8}$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Correo electronico</label>
+                     <input type="email" name="email" value={formData.email} onChange={handleChange} disabled={preloadedFromDpiSearch} pattern="^[^\s@]+@[^\s@]+\.[^\s@]+$" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                   </div>
+                   <div className="md:col-span-3">
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Direccion de residencia</label>
+                     <input name="direccion" value={formData.direccion} onChange={handleChange} disabled={preloadedFromDpiSearch} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed" />
+                   </div>
+                     </div>
+                   )}
+                 </div>
+               )}
+
+               {currentStep.key === 'EMERGENCY' && (
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre contacto emergencia</label>
+                     <input
+                       name="contactoEmergencia"
+                       value={formData.contactoEmergencia}
+                       onChange={handleNameChange('contactoEmergencia')}
+                       disabled={preloadedFromDpiSearch}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                     />
+                   </div>
+                   <div>
+                     <label className="block text-xs font-semibold text-gray-600 mb-1">Telefono contacto emergencia</label>
+                     <input
+                       name="telefonoEmergencia"
+                       value={formData.telefonoEmergencia}
+                       onChange={handlePhoneChange('telefonoEmergencia')}
+                       disabled={preloadedFromDpiSearch}
+                       inputMode="numeric"
+                       maxLength={8}
+                       pattern="^[0-9]{8}$"
+                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                     />
+                   </div>
+                 </div>
+               )}
+
+              {currentStep.key === 'INSURANCE' && (
+                <div className="space-y-4">
+                  {formData.flowType === 'WALK_IN' && (
+                    <>
+                  <div>
+                    <p className="block text-xs font-semibold text-gray-600 mb-2">Selecciona modalidad de pago</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={selectNoInsurance}
+                        className={`px-3 py-2 text-sm rounded-lg border ${
+                          formData.insuranceMode === 'NONE'
+                            ? 'bg-slate-900 text-white border-slate-900'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Sin seguro
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData((prev) => ({ ...prev, insuranceMode: 'INSURED' }))}
+                        className={`px-3 py-2 text-sm rounded-lg border ${
+                          formData.insuranceMode === 'INSURED'
+                            ? 'bg-blue-600 text-white border-blue-600'
+                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        Con seguro
+                      </button>
+                    </div>
+                  </div>
+
+                  {formData.insuranceMode === 'NONE' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Banco propietario</label>
+                        <input
+                          name="bancoTarjeta"
+                          value={formData.bancoTarjeta}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="Ej. Banco Industrial"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Nombre del titular</label>
+                        <input
+                          name="nombreTitularTarjeta"
+                          value={formData.nombreTitularTarjeta}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="Como aparece en la tarjeta"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Numero de tarjeta</label>
+                        <input
+                          name="numeroTarjeta"
+                          value={formData.numeroTarjeta}
+                          onChange={handleCardNumberChange}
+                          inputMode="numeric"
+                          maxLength={19}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="13 a 19 digitos"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">Vencimiento</label>
+                          <input
+                            name="fechaVencimientoTarjeta"
+                            value={formData.fechaVencimientoTarjeta}
+                            onChange={handleCardExpiryChange}
+                            inputMode="numeric"
+                            maxLength={5}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            placeholder="MM/YY"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-gray-600 mb-1">CVC</label>
+                          <input
+                            name="cvcTarjeta"
+                            value={formData.cvcTarjeta}
+                            onChange={handleCardCvcChange}
+                            inputMode="numeric"
+                            maxLength={4}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                            placeholder="3-4 digitos"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.insuranceMode === 'INSURED' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Aseguradora</label>
+                        <select
+                          value={formData.aseguradoraId ?? ''}
+                          onChange={(e) => {
+                            const selected = Number(e.target.value)
+                            if (Number.isNaN(selected) || !selected) {
+                              setFormData((prev) => ({ ...prev, aseguradoraId: undefined }))
+                            } else {
+                              selectInsurance(selected)
+                            }
+                          }}
+                          disabled={catalogLoading}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        >
+                          <option value="">{catalogLoading ? 'Cargando aseguradoras...' : 'Selecciona aseguradora'}</option>
+                          {insuranceOptions.map((insurance) => (
+                            <option key={insurance.id} value={insurance.id}>{insurance.nombre}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-600 mb-1">Numero de poliza</label>
+                        <input
+                          name="polizaSeguro"
+                          value={formData.polizaSeguro}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          placeholder="Ingresa numero de poliza"
+                        />
+                      </div>
+                    </div>
+                  )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {currentStep.key === 'VITALS' && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Presion sistolica</label>
+                      <input
+                        type="number"
+                        min={50}
+                        max={300}
+                        step={1}
+                        inputMode="numeric"
+                        name="presionSistolica"
+                        value={formData.presionSistolica}
+                        onChange={handleLimitedIntegerChange('presionSistolica', 3, 300)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Ej. 120 mmHg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Presion diastolica</label>
+                      <input
+                        type="number"
+                        min={30}
+                        max={200}
+                        step={1}
+                        inputMode="numeric"
+                        name="presionDiastolica"
+                        value={formData.presionDiastolica}
+                        onChange={handleLimitedIntegerChange('presionDiastolica', 3, 200)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Ej. 80 mmHg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Frecuencia cardiaca</label>
+                      <input
+                        type="number"
+                        min={20}
+                        max={250}
+                        step={1}
+                        inputMode="numeric"
+                        name="frecuenciaCardiaca"
+                        value={formData.frecuenciaCardiaca}
+                        onChange={handleLimitedIntegerChange('frecuenciaCardiaca', 3, 250)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Ej. 72 lpm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Temperatura</label>
+                      <input
+                        type="number"
+                        step={1}
+                        min={10}
+                        max={50}
+                        inputMode="numeric"
+                        name="temperatura"
+                        value={formData.temperatura}
+                        onChange={handleLimitedIntegerChange('temperatura', 2, 50)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Ej. 37 °C"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Saturacion O2</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step={1}
+                        inputMode="numeric"
+                        name="saturacionOxigeno"
+                        value={formData.saturacionOxigeno}
+                        onChange={handleLimitedIntegerChange('saturacionOxigeno', 3, 100)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Ej. 98 %"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Peso (kg)</label>
+                      <input
+                        type="number"
+                        step={1}
+                        min={1}
+                        max={999}
+                        inputMode="numeric"
+                        name="pesoKg"
+                        value={formData.pesoKg}
+                        onChange={handleLimitedIntegerChange('pesoKg', 3, 999)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Ej. 70 kg"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Talla (cm)</label>
+                      <input
+                        type="number"
+                        step={1}
+                        min={30}
+                        max={300}
+                        inputMode="numeric"
+                        name="tallaCm"
+                        value={formData.tallaCm}
+                        onChange={handleLimitedIntegerChange('tallaCm', 3, 300)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        placeholder="Ej. 170 cm"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500">Referencia orientativa de triaje verde: PA 120/80, FC 60-100, temperatura 36-37.4, saturacion O2 &gt;= 95.</p>
+                </div>
+              )}
+
+              <div className="flex justify-between gap-2 pt-1">
+                <div className="text-xs text-gray-500 flex items-center">
+                  Paso {currentStepIndex + 1} de {steps.length}
+                </div>
+                <div className="flex gap-2">
+                  {currentStepIndex > 0 && (
+                    <button type="button" onClick={goPreviousStep} disabled={submitting} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed">
+                      Anterior
+                    </button>
+                  )}
+                <button type="button" onClick={handleReset} disabled={submitting} className="px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed">Limpiar</button>
+                  {currentStepIndex < steps.length - 1 ? (
+                    <button type="button" onClick={() => void goNextStep()} className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed" disabled={submitting || checkingAvailability || (catalogLoading && (currentStep.key === 'PERSONAL' || currentStep.key === 'INSURANCE'))}>
+                      {checkingAvailability ? 'Validando...' : 'Siguiente fase'}
+                    </button>
+                  ) : (
+                    <button type="submit" disabled={submitting || !!savedTriageData} className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed">
+                      {submitting ? 'Guardando...' : 'Guardar triaje'}
+                    </button>
+                  )}
+                </div>
+               </div>
+             </form>
+            </>
+          )}
+        </section>
+      </main>
+    </div>
+  )
+}
+
+export default TriageIntake
+
