@@ -11,9 +11,11 @@ import his.domain.models.LaboratoryOrderStatus;
 import his.domain.models.LaboratoryResult;
 import his.domain.models.MedicalAppointmentDetails;
 import his.domain.models.Role;
+import his.domain.models.AdministrativeAppointmentStatus;
 import his.domain.ports.HospitalStaffRepository;
 import his.domain.ports.LaboratoryOrderRepository;
 import his.domain.ports.LaboratoryResultRepository;
+import his.domain.ports.MedicalAppointmentRepository;
 import his.domain.ports.MedicalAppointmentDetailsRepository;
 import his.domain.ports.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +38,7 @@ public class LaboratoryService implements LaboratoryUseCase {
     private final LaboratoryOrderRepository orderRepository;
     private final LaboratoryResultRepository resultRepository;
     private final MedicalAppointmentDetailsRepository detailsRepository;
+    private final MedicalAppointmentRepository appointmentRepository;
     private final HospitalStaffRepository staffRepository;
     private final UserRepository userRepository;
 
@@ -51,9 +54,11 @@ public class LaboratoryService implements LaboratoryUseCase {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Detalle de cita no encontrado: " + req.getCitaMedicaDetalleId()));
 
-        // RN07 / FA01 — verificar solvencia: el detalle debe existir (deriva de cita ya en curso/atendida)
-        // La validación gruesa de pago la lleva la cita_medica. Si el detalle existe, la cita fue abierta
-        // por un médico, por lo que el pago ya fue verificado en triaje (RN03).
+        var cita = appointmentRepository.findById(detalle.getCitaMedicaId())
+                .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada para el detalle indicado."));
+        if (cita.getEstadoAdministrativo() != AdministrativeAppointmentStatus.PAGO_VALIDADO) {
+            throw new IllegalStateException("Examen no solvente. Debe validar pago antes de recibir muestra.");
+        }
 
         LaboratoryOrder order = LaboratoryOrder.builder()
                 .citaMedicaDetalleId(req.getCitaMedicaDetalleId())
@@ -102,6 +107,10 @@ public class LaboratoryService implements LaboratoryUseCase {
     public LaboratoryOrderResponse rejectSample(Long ordenLaboratorioId, String motivo, String emailLaboratorista) {
         resolveStaff(emailLaboratorista, Role.LABORATORISTA);
 
+        if (motivo == null || motivo.isBlank()) {
+            throw new IllegalArgumentException("Debes indicar el motivo de rechazo de muestra.");
+        }
+
         LaboratoryOrder order = findOrder(ordenLaboratorioId);
         if (order.getEstado() == LaboratoryOrderStatus.FINALIZADO) {
             throw new IllegalStateException("No se puede rechazar una orden ya finalizada.");
@@ -128,6 +137,8 @@ public class LaboratoryService implements LaboratoryUseCase {
         if (order.getEstado() != LaboratoryOrderStatus.EN_PROCESO) {
             throw new IllegalStateException("La orden debe estar EN_PROCESO para registrar resultados.");
         }
+
+        validateResultRanges(req);
 
         // FA03 — detectar valores críticos fuera de rango
         boolean critico = false;
@@ -205,6 +216,24 @@ public class LaboratoryService implements LaboratoryUseCase {
             throw new IllegalArgumentException("Rol requerido: " + expectedRole + " — actual: " + staff.getRol());
         }
         return staff;
+    }
+
+    private void validateResultRanges(AddLaboratoryResultRequest req) {
+        boolean hasAnyRangeValue = req.getValorResultado() != null
+                || req.getReferenciaMinima() != null
+                || req.getReferenciaMaxima() != null;
+
+        if (!hasAnyRangeValue) {
+            return;
+        }
+
+        if (req.getValorResultado() == null || req.getReferenciaMinima() == null || req.getReferenciaMaxima() == null) {
+            throw new IllegalArgumentException("Debes completar valorResultado, referenciaMinima y referenciaMaxima cuando reportas valores numéricos.");
+        }
+
+        if (req.getReferenciaMinima().compareTo(req.getReferenciaMaxima()) > 0) {
+            throw new IllegalArgumentException("referenciaMinima no puede ser mayor a referenciaMaxima.");
+        }
     }
 
     private LaboratoryOrderResponse toResponse(LaboratoryOrder o, LaboratoryResult r) {

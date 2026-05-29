@@ -71,6 +71,13 @@ public class PharmacyController {
         return ResponseEntity.ok(useCase.getReminders(pacienteId));
     }
 
+    @Operation(summary = "Obtener recordatorios activos del paciente autenticado")
+    @GetMapping("/reminders/me")
+    @PreAuthorize("hasAuthority('PACIENTE')")
+    public ResponseEntity<List<MedicationReminderResponse>> getMyReminders() {
+        return ResponseEntity.ok(useCase.getRemindersByEmail(getEmail()));
+    }
+
     // ── Exception handlers ────────────────────────────���───────────────────────
 
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})

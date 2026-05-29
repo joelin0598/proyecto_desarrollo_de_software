@@ -279,6 +279,114 @@ export interface ErrorResponse {
   errorMessage: string
 }
 
+export type LaboratoryOrderStatus = 'PENDIENTE_PAGO' | 'PENDIENTE_MUESTRA' | 'EN_PROCESO' | 'MUESTRA_RECHAZADA' | 'FINALIZADO'
+
+export interface CreateLaboratoryOrderRequest {
+  citaMedicaDetalleId: number
+  nombreExamen: string
+  tipoMuestra?: string
+}
+
+export interface AddLaboratoryResultRequest {
+  ordenLaboratorioId: number
+  nombreExamen: string
+  valorResultado?: number
+  unidadResultado?: string
+  referenciaMinima?: number
+  referenciaMaxima?: number
+  observaciones?: string
+  resumen?: string
+  conclusion: string
+}
+
+export interface LaboratoryResultResponse {
+  resultadoLaboratorioId: number
+  ordenLaboratorioId: number
+  nombreExamen: string
+  valorResultado?: number
+  unidadResultado?: string
+  referenciaMinima?: number
+  referenciaMaxima?: number
+  observaciones?: string
+  resumen?: string
+  conclusion: string
+  critico: boolean
+  createdAt?: string
+}
+
+export interface LaboratoryOrderResponse {
+  ordenLaboratorioId: number
+  citaMedicaDetalleId: number
+  nombreExamen: string
+  tipoMuestra?: string
+  estado: LaboratoryOrderStatus
+  pagoValidado: boolean
+  etiquetaId?: string
+  alertaCritica: boolean
+  observacionesTecnico?: string
+  createdAt?: string
+  resultado?: LaboratoryResultResponse
+}
+
+export interface CreatePrescriptionRequest {
+  citaMedicaDetalleId: number
+  instruccionesGenerales?: string
+  items: Array<{
+    medicamentoId: number
+    cantidad: number
+    dosis?: string
+    viaAdministracion?: string
+    frecuenciaHoras?: number
+    duracionDias?: number
+  }>
+}
+
+export interface PrescriptionDetailResponse {
+  recetaMedicaDetalleId: number
+  medicamentoId: number
+  medicamentoNombre?: string
+  cantidad: number
+  dosis?: string
+  viaAdministracion?: string
+  frecuenciaHoras?: number
+  duracionDias?: number
+  despachado: boolean
+  pagoValidado: boolean
+}
+
+export interface PrescriptionResponse {
+  recetaMedicaId: number
+  citaMedicaDetalleId: number
+  instruccionesGenerales?: string
+  fechaEmision: string
+  createdAt?: string
+  items: PrescriptionDetailResponse[]
+}
+
+export interface DispenseMedicineRequest {
+  recetaMedicaDetalleId: number
+}
+
+export interface MedicineResponse {
+  medicamentoId: number
+  nombre: string
+  presentacion?: string
+  descripcion?: string
+  stockActual: number
+  precioUnitario?: number
+}
+
+export interface MedicationReminderResponse {
+  recordatorioId: number
+  medicamentoNombre: string
+  dosis?: string
+  frecuenciaHoras?: number
+  duracionDias?: number
+  viaAdministracion?: string
+  proximoRecordatorio?: string
+  activo: boolean
+}
+
 // Auth endpoints
 export const authAPI = {
   login: (data: LoginRequest) =>
@@ -315,6 +423,43 @@ export const catalogAPI = {
     api.get<DoctorOption[]>('/catalogs/doctors', {
       params: especialidadId ? { especialidadId } : undefined,
     }),
+}
+
+export const laboratoryAPI = {
+  createOrder: (data: CreateLaboratoryOrderRequest) =>
+    api.post<LaboratoryOrderResponse>('/laboratory/orders', data),
+
+  receiveSample: (ordenLaboratorioId: number) =>
+    api.patch<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}/receive`),
+
+  rejectSample: (ordenLaboratorioId: number, motivo: string) =>
+    api.patch<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}/reject`, null, { params: { motivo } }),
+
+  addResult: (data: AddLaboratoryResultRequest) =>
+    api.post<LaboratoryOrderResponse>('/laboratory/orders/result', data),
+
+  getOrder: (ordenLaboratorioId: number) =>
+    api.get<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}`),
+}
+
+export const pharmacyAPI = {
+  listMedicines: () =>
+    api.get<MedicineResponse[]>('/pharmacy/medicines'),
+
+  createPrescription: (data: CreatePrescriptionRequest) =>
+    api.post<PrescriptionResponse>('/pharmacy/prescriptions', data),
+
+  getPrescriptionByDetalle: (citaMedicaDetalleId: number) =>
+    api.get<PrescriptionResponse>(`/pharmacy/prescriptions/by-detalle/${citaMedicaDetalleId}`),
+
+  dispense: (data: DispenseMedicineRequest) =>
+    api.post<PrescriptionResponse>('/pharmacy/dispense', data),
+
+  getRemindersByPatientId: (pacienteId: number) =>
+    api.get<MedicationReminderResponse[]>(`/pharmacy/reminders/${pacienteId}`),
+
+  getMyReminders: () =>
+    api.get<MedicationReminderResponse[]>('/pharmacy/reminders/me'),
 }
 
 export type TriagePriority = 'ROJO' | 'NARANJA' | 'AMARILLO' | 'VERDE'

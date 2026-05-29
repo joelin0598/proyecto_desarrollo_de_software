@@ -13,8 +13,8 @@ const baseModules: UseCaseModule[] = [
   { title: 'Gestión de Citas', subtitle: 'CU05', detail: 'Programación y solvencia administrativa', route: null, enabled: false, accent: 'from-blue-500 to-blue-600', icon: '💳' },
   { title: 'Mantenimiento de Usuarios', subtitle: 'CU03', detail: 'Altas, edición, suspensión y eliminación', route: '/admin/users', enabled: true, accent: 'from-indigo-500 to-indigo-600', icon: '👥' },
   { title: 'Atención Médica', subtitle: 'CU06', detail: 'Asignación clínica y cierre de atención', route: '/doctor/appointments/attention', enabled: false, accent: 'from-emerald-500 to-emerald-600', icon: '⚕️' },
-  { title: 'Laboratorio', subtitle: 'CU07', detail: 'Muestras y resultados', route: null, enabled: false, accent: 'from-violet-500 to-violet-600', icon: '🧪' },
-  { title: 'Farmacia', subtitle: 'CU08', detail: 'Despacho y recordatorios', route: null, enabled: false, accent: 'from-amber-500 to-amber-600', icon: '💊' },
+  { title: 'Laboratorio', subtitle: 'CU07', detail: 'Muestras y resultados', route: '/admin/laboratory', enabled: false, accent: 'from-violet-500 to-violet-600', icon: '🧪' },
+  { title: 'Farmacia', subtitle: 'CU08', detail: 'Despacho y recordatorios', route: '/admin/pharmacy', enabled: false, accent: 'from-amber-500 to-amber-600', icon: '💊' },
   { title: 'Reportes de Eficiencia', subtitle: 'CU09', detail: 'Indicadores operativos y exportación', route: null, enabled: false, accent: 'from-fuchsia-500 to-fuchsia-600', icon: '📈' },
   { title: 'Asistencia Biométrica', subtitle: 'CU10', detail: 'Control de jornada del personal', route: null, enabled: false, accent: 'from-teal-500 to-teal-600', icon: '🧷' },
 ]
@@ -28,6 +28,10 @@ const AdminDashboard: React.FC = () => {
     () => baseModules.map((module) =>
       module.subtitle === 'CU06'
         ? { ...module, enabled: user?.role === 'DOCTOR' }
+        : module.subtitle === 'CU07'
+          ? { ...module, enabled: user?.role === 'LABORATORISTA' || user?.role === 'ADMIN' }
+          : module.subtitle === 'CU08'
+            ? { ...module, enabled: user?.role === 'FARMACEUTICO' || user?.role === 'ADMIN' }
         : module
     ),
     [user?.role],

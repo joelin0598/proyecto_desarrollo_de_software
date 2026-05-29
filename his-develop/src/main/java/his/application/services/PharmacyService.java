@@ -12,6 +12,7 @@ import his.domain.models.MedicalPrescriptionDetails;
 import his.domain.models.MedicationReminder;
 import his.domain.models.Medicine;
 import his.domain.models.MedicalAppointmentDetails;
+import his.domain.models.AdministrativeAppointmentStatus;
 import his.domain.models.Role;
 import his.domain.ports.HospitalStaffRepository;
 import his.domain.ports.MedicalAppointmentDetailsRepository;
@@ -20,6 +21,7 @@ import his.domain.ports.MedicalPrescriptionDetailsRepository;
 import his.domain.ports.MedicalPrescriptionRepository;
 import his.domain.ports.MedicationReminderRepository;
 import his.domain.ports.MedicineRepository;
+import his.domain.ports.PatientRepository;
 import his.domain.ports.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +41,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PharmacyService implements PharmacyUseCase {
 
+    private static final int PRESCRIPTION_VALID_DAYS = 30;
+
     private final MedicalPrescriptionRepository prescriptionRepository;
     private final MedicalPrescriptionDetailsRepository prescriptionDetailsRepository;
     private final MedicineRepository medicineRepository;
@@ -46,6 +50,7 @@ public class PharmacyService implements PharmacyUseCase {
     private final MedicalAppointmentDetailsRepository appointmentDetailsRepository;
     private final MedicalAppointmentRepository appointmentRepository;
     private final HospitalStaffRepository staffRepository;
+    private final PatientRepository patientRepository;
     private final UserRepository userRepository;
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -98,6 +103,7 @@ public class PharmacyService implements PharmacyUseCase {
         MedicalPrescription prescription = prescriptionRepository.findByCitaMedicaDetalleId(citaMedicaDetalleId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Receta no encontrada para detalleId=" + citaMedicaDetalleId));
+        validatePrescriptionIsActive(prescription);
         List<MedicalPrescriptionDetails> items =
                 prescriptionDetailsRepository.findByRecetaId(prescription.getRecetaMedicaId());
         return toResponse(prescription, items);
@@ -114,6 +120,12 @@ public class PharmacyService implements PharmacyUseCase {
         MedicalPrescriptionDetails detalle = prescriptionDetailsRepository.findById(req.getRecetaMedicaDetalleId())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Detalle de receta no encontrado: " + req.getRecetaMedicaDetalleId()));
+
+        MedicalPrescription receta = prescriptionRepository.findById(detalle.getRecetaMedicaId())
+                .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada"));
+
+        validatePrescriptionIsActive(receta);
+        validateAdministrativeSolvency(receta.getCitaMedicaDetalleId());
 
         // RN09 — FA01: validar que no esté ya despachado
         if (detalle.isDespachado()) {
@@ -142,8 +154,6 @@ public class PharmacyService implements PharmacyUseCase {
         // Crear recordatorio (CU08 FA postcondición)
         if (detalle.getFrecuenciaHoras() != null && detalle.getDuracionDias() != null) {
             // Obtener paciente desde la cita a través de la receta
-            MedicalPrescription receta = prescriptionRepository.findById(detalle.getRecetaMedicaId())
-                    .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada"));
             MedicalAppointmentDetails apptDetail = appointmentDetailsRepository
                     .findById(receta.getCitaMedicaDetalleId())
                     .orElseThrow(() -> new IllegalArgumentException("Detalle de cita no encontrado"));
@@ -169,7 +179,6 @@ public class PharmacyService implements PharmacyUseCase {
         log.info("CU08: Despachado detalleId={} medicamento={} cantidad={}",
                 detalle.getRecetaMedicaDetalleId(), med.getNombre(), detalle.getCantidad());
 
-        MedicalPrescription receta = prescriptionRepository.findById(detalle.getRecetaMedicaId()).orElseThrow();
         List<MedicalPrescriptionDetails> allItems =
                 prescriptionDetailsRepository.findByRecetaId(receta.getRecetaMedicaId());
         return toResponse(receta, allItems);
@@ -190,6 +199,13 @@ public class PharmacyService implements PharmacyUseCase {
                         .activo(r.isActivo())
                         .build())
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MedicationReminderResponse> getRemindersByEmail(String emailPaciente) {
+        Long pacienteId = resolvePacienteIdByEmail(emailPaciente);
+        return getReminders(pacienteId);
     }
 
     @Override
@@ -233,6 +249,34 @@ public class PharmacyService implements PharmacyUseCase {
         return appointmentRepository.findById(d.getCitaMedicaId())
                 .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada"))
                 .getPacienteId();
+    }
+
+    private Long resolvePacienteIdByEmail(String emailPaciente) {
+        var user = userRepository.findByEmail(emailPaciente)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + emailPaciente));
+        if (user.getRole() != Role.PACIENTE) {
+            throw new IllegalArgumentException("Solo pacientes pueden consultar sus recordatorios en este endpoint.");
+        }
+        return patientRepository.findByUsuarioId(user.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado para usuario autenticado."))
+                .getPacienteId();
+    }
+
+    private void validatePrescriptionIsActive(MedicalPrescription prescription) {
+        LocalDate emissionDate = prescription.getFechaEmision();
+        if (emissionDate == null || emissionDate.isBefore(LocalDate.now().minusDays(PRESCRIPTION_VALID_DAYS))) {
+            throw new IllegalStateException("Receta inexistente o vencida.");
+        }
+    }
+
+    private void validateAdministrativeSolvency(Long citaMedicaDetalleId) {
+        MedicalAppointmentDetails detail = appointmentDetailsRepository.findById(citaMedicaDetalleId)
+                .orElseThrow(() -> new IllegalArgumentException("Detalle de cita no encontrado: " + citaMedicaDetalleId));
+        var appointment = appointmentRepository.findById(detail.getCitaMedicaId())
+                .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada para validación administrativa."));
+        if (appointment.getEstadoAdministrativo() != AdministrativeAppointmentStatus.PAGO_VALIDADO) {
+            throw new IllegalStateException("Receta no solvente administrativamente. Valida pago antes del despacho.");
+        }
     }
 
     private PrescriptionResponse toResponse(MedicalPrescription p, List<MedicalPrescriptionDetails> items) {

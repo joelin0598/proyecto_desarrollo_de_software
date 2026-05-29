@@ -39,7 +39,7 @@ const mainPortalActions = [
     detail: 'Consultar prescripciones vigentes, dosis, frecuencia y recordatorios asociados al tratamiento.',
     bulletPoints: ['Medicamento y dosis', 'Frecuencia del tratamiento', 'Historial de despacho'],
     action: 'Ver recetas',
-    route: null,
+    route: '/portal/reminders',
   },
 ]
 

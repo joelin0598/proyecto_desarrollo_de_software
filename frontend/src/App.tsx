@@ -15,6 +15,9 @@ import AppointmentManagement from '@/pages/AppointmentManagement'
 import AppointmentQueue from '@/pages/AppointmentQueue'
 import AppointmentAttentionWorkspace from '@/pages/AppointmentAttentionWorkspace'
 import AppointmentAttentionInProgress from '@/pages/AppointmentAttentionInProgress'
+import LaboratoryWorkbench from '@/pages/LaboratoryWorkbench'
+import PharmacyWorkbench from '@/pages/PharmacyWorkbench'
+import PatientReminders from '@/pages/PatientReminders'
 import UserPortal from '@/pages/UserPortal'
 import TriageIntake from '@/pages/TriageIntake'
 import MyAppointments from '@/pages/MyAppointments'
@@ -135,6 +138,24 @@ function App() {
           />
 
           <Route
+            path="/admin/laboratory"
+            element={
+              <ProtectedRoute requiredRoles={['LABORATORISTA', 'ADMIN']}>
+                <LaboratoryWorkbench />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/pharmacy"
+            element={
+              <ProtectedRoute requiredRoles={['FARMACEUTICO', 'ADMIN']}>
+                <PharmacyWorkbench />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/portal/appointments"
             element={
               <ProtectedRoute requiredRoles={['PACIENTE']}>
@@ -148,6 +169,15 @@ function App() {
             element={
               <ProtectedRoute requiredRoles={['PACIENTE']}>
                 <MyAppointments />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/portal/reminders"
+            element={
+              <ProtectedRoute requiredRoles={['PACIENTE']}>
+                <PatientReminders />
               </ProtectedRoute>
             }
           />

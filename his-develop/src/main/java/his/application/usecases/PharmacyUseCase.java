@@ -10,5 +10,6 @@ public interface PharmacyUseCase {
     PrescriptionResponse getPrescription(Long citaMedicaDetalleId);
     PrescriptionResponse dispense(DispenseMedicineRequest req, String emailFarmaceutico);
     List<MedicationReminderResponse> getReminders(Long pacienteId);
+    List<MedicationReminderResponse> getRemindersByEmail(String emailPaciente);
     List<MedicineResponse> listMedicines();
 }
