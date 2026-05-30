@@ -48,7 +48,7 @@ public class LaboratoryService implements LaboratoryUseCase {
     @Override
     @Transactional
     public LaboratoryOrderResponse createOrder(CreateLaboratoryOrderRequest req, String emailLaboratorista) {
-        HospitalStaff staff = resolveStaff(emailLaboratorista, Role.LABORATORISTA);
+        HospitalStaff staff = resolveLabOrderCreator(emailLaboratorista);
 
         MedicalAppointmentDetails detalle = detailsRepository.findById(req.getCitaMedicaDetalleId())
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -214,6 +214,19 @@ public class LaboratoryService implements LaboratoryUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Perfil de personal no encontrado: " + email));
         if (staff.getRol() != expectedRole && staff.getRol() != Role.ADMIN) {
             throw new IllegalArgumentException("Rol requerido: " + expectedRole + " — actual: " + staff.getRol());
+        }
+        return staff;
+    }
+
+    private HospitalStaff resolveLabOrderCreator(String email) {
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + email));
+        var staff = staffRepository.findByUsuarioId(user.getUserId())
+                .orElseThrow(() -> new IllegalArgumentException("Perfil de personal no encontrado: " + email));
+
+        Role role = staff.getRol();
+        if (role != Role.LABORATORISTA && role != Role.DOCTOR && role != Role.ADMIN) {
+            throw new IllegalArgumentException("Rol requerido: LABORATORISTA, DOCTOR o ADMIN — actual: " + role);
         }
         return staff;
     }

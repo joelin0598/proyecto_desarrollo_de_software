@@ -29,6 +29,7 @@ import java.time.LocalTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -437,12 +438,21 @@ class MedicalAppointmentAttentionServiceTest {
                 .evaluacionFisica("Paciente estable")
                 .diagnostico("Hipertensión leve")
                 .requiereSeguimiento(true)
+                .citaSeguimientoId(999L)
                 .build();
         when(appointmentDetailsRepository.save(any(MedicalAppointmentDetails.class))).thenReturn(detalleCerrado);
 
         MedicalAppointment citaAtendida = buildProgramada();
         citaAtendida.setEstadoCita(StatusAppointment.ATENDIDA);
-        when(appointmentRepository.save(any(MedicalAppointment.class))).thenReturn(citaAtendida);
+        when(appointmentRepository.save(any(MedicalAppointment.class))).thenAnswer(invocation -> {
+            MedicalAppointment toSave = invocation.getArgument(0);
+            if (toSave.getCitaMedicaId() == null) {
+                toSave.setCitaMedicaId(999L);
+                return toSave;
+            }
+            toSave.setEstadoCita(StatusAppointment.ATENDIDA);
+            return toSave;
+        });
 
         when(patientRepository.findById(PACIENTE_ID)).thenReturn(Optional.of(buildPatient()));
         when(specialityRepository.findAllActive()).thenReturn(Collections.emptyList());
@@ -463,8 +473,55 @@ class MedicalAppointmentAttentionServiceTest {
         assertEquals(StatusAppointment.ATENDIDA, response.getEstado());
         assertEquals("Hipertensión leve", response.getDiagnostico());
         assertTrue(response.getRequiereSeguimiento());
-        verify(appointmentRepository).save(any(MedicalAppointment.class));
+        assertEquals(999L, response.getCitaSeguimientoId());
+        verify(appointmentRepository, times(2)).save(any(MedicalAppointment.class));
         verify(appointmentDetailsRepository).save(any(MedicalAppointmentDetails.class));
+    }
+
+    @Test
+    void closeAttention_generatesTentativeFollowUp_whenRequiereSeguimientoTrue_FA03() {
+        // Arrange
+        stubDoctorResolution();
+
+        MedicalAppointmentDetails detalle = MedicalAppointmentDetails.builder()
+                .medicalAppointmentDetailsId(DETALLE_ID)
+                .citaMedicaId(CITA_ID)
+                .build();
+        when(appointmentDetailsRepository.findById(DETALLE_ID)).thenReturn(Optional.of(detalle));
+
+        MedicalAppointment citaEnCurso = buildProgramada();
+        citaEnCurso.setEstadoCita(StatusAppointment.EN_CURSO);
+        when(appointmentRepository.findById(CITA_ID)).thenReturn(Optional.of(citaEnCurso));
+
+        AtomicInteger saveCounter = new AtomicInteger(0);
+        when(appointmentRepository.save(any(MedicalAppointment.class))).thenAnswer(invocation -> {
+            MedicalAppointment toSave = invocation.getArgument(0);
+            if (saveCounter.incrementAndGet() == 1) {
+                toSave.setCitaMedicaId(1000L);
+                return toSave;
+            }
+            return toSave;
+        });
+
+        when(appointmentDetailsRepository.save(any(MedicalAppointmentDetails.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(patientRepository.findById(PACIENTE_ID)).thenReturn(Optional.of(buildPatient()));
+        when(specialityRepository.findAllActive()).thenReturn(Collections.emptyList());
+
+        CloseMedicalAppointmentAttentionRequest request = CloseMedicalAppointmentAttentionRequest.builder()
+                .citaMedicaDetalleId(DETALLE_ID)
+                .evaluacionFisica("Paciente estable")
+                .diagnostico("Control ambulatorio")
+                .requiereSeguimiento(true)
+                .build();
+
+        // Act
+        MedicalAppointmentAttentionResponse response = service.closeAttention(request, EMAIL_DOCTOR);
+
+        // Assert
+        assertEquals(StatusAppointment.ATENDIDA, response.getEstado());
+        assertTrue(response.getRequiereSeguimiento());
+        assertEquals(1000L, response.getCitaSeguimientoId(), "FA03: debe guardar la cita de seguimiento tentativo");
+        verify(appointmentRepository, times(2)).save(any(MedicalAppointment.class));
     }
 
     @Test

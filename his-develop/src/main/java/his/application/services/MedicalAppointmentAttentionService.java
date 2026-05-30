@@ -9,6 +9,7 @@ import his.domain.models.MedicalAppointment;
 import his.domain.models.MedicalAppointmentDetails;
 import his.domain.models.MedicalSpecialityCatalog;
 import his.domain.models.Patient;
+import his.domain.models.AdministrativeAppointmentStatus;
 import his.domain.models.Role;
 import his.domain.models.StatusAppointment;
 import his.domain.ports.HospitalStaffRepository;
@@ -22,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -152,7 +154,20 @@ public class MedicalAppointmentAttentionService implements MedicalAppointmentAtt
         detail.setOrdenLaboratorio(req.getOrdenLaboratorio());
         detail.setRecetaMedica(req.getRecetaMedica());
         detail.setMedicacionPrescrita(req.getMedicacionPrescrita());
-        detail.setRequiereSeguimiento(req.getRequiereSeguimiento() != null && req.getRequiereSeguimiento());
+        boolean requiereSeguimiento = req.getRequiereSeguimiento() != null && req.getRequiereSeguimiento();
+        detail.setRequiereSeguimiento(requiereSeguimiento);
+
+        if (requiereSeguimiento && detail.getCitaSeguimientoId() == null) {
+            MedicalAppointment seguimientoTentativo = buildTentativeFollowUp(cita);
+            MedicalAppointment savedFollowUp = appointmentRepository.save(seguimientoTentativo);
+            detail.setCitaSeguimientoId(savedFollowUp.getCitaMedicaId());
+            log.info("CU06-FA03: Seguimiento tentativo generado citaOriginalId={} citaSeguimientoId={}",
+                    cita.getCitaMedicaId(), savedFollowUp.getCitaMedicaId());
+        }
+        if (!requiereSeguimiento) {
+            detail.setCitaSeguimientoId(null);
+        }
+
         MedicalAppointmentDetails closed = appointmentDetailsRepository.save(detail);
 
         cita.setEstadoCita(StatusAppointment.ATENDIDA);
@@ -257,12 +272,36 @@ public class MedicalAppointmentAttentionService implements MedicalAppointmentAtt
                 .recetaMedica(details.getRecetaMedica())
                 .medicacionPrescrita(details.getMedicacionPrescrita())
                 .requiereSeguimiento(details.getRequiereSeguimiento())
+                .citaSeguimientoId(details.getCitaSeguimientoId())
                 .createdAt(details.getCreatedAt())
                 .fechaCita(cita.getFechaCita() != null ? cita.getFechaCita().toString() : null)
                 .horaCita(cita.getHoraCita() != null ? cita.getHoraCita().toString() : null)
                 .motivoConsulta(cita.getMotivoConsulta())
                 .especialidadNombre(especialidadNombre)
                 .prioridad(prioridad)
+                .build();
+    }
+
+    private MedicalAppointment buildTentativeFollowUp(MedicalAppointment citaActual) {
+        LocalDate baseDate = citaActual.getFechaCita() != null ? citaActual.getFechaCita() : LocalDate.now();
+        LocalDate followUpDate = baseDate.plusDays(7);
+
+        return MedicalAppointment.builder()
+                .pacienteId(citaActual.getPacienteId())
+                .personalId(citaActual.getPersonalId())
+                .especialidadId(citaActual.getEspecialidadId())
+                .fechaCita(followUpDate)
+                .horaCita(citaActual.getHoraCita())
+                .motivoConsulta("Seguimiento tentativo de cita #" + citaActual.getCitaMedicaId())
+                .metodoPago(citaActual.getMetodoPago())
+                .costoConsulta(citaActual.getCostoConsulta() != null ? citaActual.getCostoConsulta() : 0.0d)
+                .estadoCita(StatusAppointment.PROGRAMADA)
+                .estadoAdministrativo(AdministrativeAppointmentStatus.PAGO_PENDIENTE)
+                .observacionAdministrativa("SEGUIMIENTO_TENTATIVO")
+                .solvenciaPago(false)
+                .citaProgramada(true)
+                .prioridad(citaActual.getPrioridad())
+                .alertaEmergencia(false)
                 .build();
     }
 }

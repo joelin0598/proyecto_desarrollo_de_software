@@ -30,6 +30,7 @@ public class MedicalAppointmentAttentionResponse {
     private String recetaMedica;
     private String medicacionPrescrita;
     private Boolean requiereSeguimiento;
+    private Long citaSeguimientoId;
     private LocalDateTime createdAt;
     private String fechaCita;
     private String horaCita;

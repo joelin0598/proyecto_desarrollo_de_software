@@ -247,6 +247,7 @@ export interface MedicalAppointmentAttentionResponse {
   recetaMedica?: string | null
   medicacionPrescrita?: string | null
   requiereSeguimiento?: boolean | null
+  citaSeguimientoId?: number | null
   createdAt?: string | null
   fechaCita?: string | null
   horaCita?: string | null

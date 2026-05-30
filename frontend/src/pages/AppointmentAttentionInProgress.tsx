@@ -5,7 +5,10 @@ import StatusChip from '@/components/ui/StatusChip'
 import {
   appointmentAttentionAPI,
   authAPI,
+  laboratoryAPI,
+  pharmacyAPI,
   type CloseMedicalAppointmentAttentionRequest,
+  type MedicineResponse,
   type MedicalAppointmentAttentionResponse,
 } from '@/services/api'
 import { useAuth } from '@/context/AuthContext'
@@ -62,6 +65,19 @@ const AppointmentAttentionInProgress: React.FC = () => {
   const [lastDraftSavedAt, setLastDraftSavedAt] = React.useState<Date | null>(null)
   const [draftRecovered, setDraftRecovered] = React.useState(false)
   const [currentAttention, setCurrentAttention] = React.useState<MedicalAppointmentAttentionResponse | null>(null)
+  const [medicines, setMedicines] = React.useState<MedicineResponse[]>([])
+  const [labOrderDraft, setLabOrderDraft] = React.useState({
+    nombreExamen: '',
+    tipoMuestra: '',
+  })
+  const [prescriptionDraft, setPrescriptionDraft] = React.useState({
+    medicamentoId: '',
+    cantidad: '1',
+    dosis: '',
+    viaAdministracion: '',
+    frecuenciaHoras: '',
+    duracionDias: '',
+  })
   const [form, setForm] = React.useState<CloseMedicalAppointmentAttentionRequest>({
     evaluacionFisica: '',
     diagnostico: '',
@@ -235,7 +251,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
     setLoadingAction(true)
     isFinalizingRef.current = true
     try {
-      await appointmentAttentionAPI.close(currentAttention.citaMedicaDetalleId, {
+      const response = await appointmentAttentionAPI.close(currentAttention.citaMedicaDetalleId, {
         evaluacionFisica: form.evaluacionFisica,
         diagnostico: form.diagnostico,
         ordenLaboratorio: form.ordenLaboratorio?.trim() || undefined,
@@ -244,7 +260,12 @@ const AppointmentAttentionInProgress: React.FC = () => {
         requiereSeguimiento: !!form.requiereSeguimiento,
       })
       clearLocalDraft()
-      setFeedback('Atención cerrada y cita marcada como atendida.')
+      const seguimientoId = response.data?.citaSeguimientoId
+      setFeedback(
+        seguimientoId
+          ? `Atención cerrada y cita marcada como atendida. Seguimiento tentativo generado (#${seguimientoId}).`
+          : 'Atención cerrada y cita marcada como atendida.'
+      )
       await syncCurrentAttention()
       navigate('/doctor/appointments/attention')
     } catch (error: any) {
@@ -252,6 +273,115 @@ const AppointmentAttentionInProgress: React.FC = () => {
       setFeedback(message)
     } finally {
       isFinalizingRef.current = false
+      setLoadingAction(false)
+    }
+  }
+
+  const loadMedicines = async () => {
+    try {
+      const response = await pharmacyAPI.listMedicines()
+      setMedicines(response.data)
+    } catch {
+      // Mantener experiencia ligera: si falla, el médico aún puede ingresar el ID manual.
+    }
+  }
+
+  const createLaboratoryOrder = async () => {
+    if (!currentAttention?.citaMedicaDetalleId) {
+      setFeedback('No se encontró citaMedicaDetalleId para crear la orden de laboratorio.')
+      return
+    }
+    if (!labOrderDraft.nombreExamen.trim()) {
+      setFeedback('Ingresa el nombre del examen para crear la orden de laboratorio.')
+      return
+    }
+
+    setLoadingAction(true)
+    try {
+      const { data } = await laboratoryAPI.createOrder({
+        citaMedicaDetalleId: currentAttention.citaMedicaDetalleId,
+        nombreExamen: labOrderDraft.nombreExamen.trim(),
+        tipoMuestra: labOrderDraft.tipoMuestra.trim() || undefined,
+      })
+      setForm((prev) => ({
+        ...prev,
+        ordenLaboratorio: prev.ordenLaboratorio?.trim()
+          ? prev.ordenLaboratorio
+          : `Orden #${data.ordenLaboratorioId} - ${data.nombreExamen}`,
+      }))
+      setFeedback(`Orden de laboratorio creada (CU07): #${data.ordenLaboratorioId}.`)
+      setLabOrderDraft({ nombreExamen: '', tipoMuestra: '' })
+    } catch (error: any) {
+      const message = error?.response?.data?.errorMessage || 'No se pudo crear la orden de laboratorio.'
+      setFeedback(message)
+    } finally {
+      setLoadingAction(false)
+    }
+  }
+
+  const createPrescription = async () => {
+    if (!currentAttention?.citaMedicaDetalleId) {
+      setFeedback('No se encontró citaMedicaDetalleId para crear la receta.')
+      return
+    }
+
+    const medicamentoId = Number(prescriptionDraft.medicamentoId)
+    const cantidad = Number(prescriptionDraft.cantidad)
+    if (!Number.isFinite(medicamentoId) || medicamentoId <= 0) {
+      setFeedback('Ingresa un medicamentoId válido para la receta.')
+      return
+    }
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      setFeedback('Ingresa una cantidad válida para la receta.')
+      return
+    }
+
+    const frecuenciaHoras = prescriptionDraft.frecuenciaHoras.trim()
+      ? Number(prescriptionDraft.frecuenciaHoras)
+      : undefined
+    const duracionDias = prescriptionDraft.duracionDias.trim()
+      ? Number(prescriptionDraft.duracionDias)
+      : undefined
+
+    setLoadingAction(true)
+    try {
+      const { data } = await pharmacyAPI.createPrescription({
+        citaMedicaDetalleId: currentAttention.citaMedicaDetalleId,
+        items: [
+          {
+            medicamentoId,
+            cantidad,
+            dosis: prescriptionDraft.dosis.trim() || undefined,
+            viaAdministracion: prescriptionDraft.viaAdministracion.trim() || undefined,
+            frecuenciaHoras,
+            duracionDias,
+          },
+        ],
+      })
+
+      const detalle = data.items?.[0]
+      setForm((prev) => ({
+        ...prev,
+        recetaMedica: prev.recetaMedica?.trim() ? prev.recetaMedica : `Receta #${data.recetaMedicaId}`,
+        medicacionPrescrita: prev.medicacionPrescrita?.trim()
+          ? prev.medicacionPrescrita
+          : detalle
+            ? `${detalle.medicamentoNombre || detalle.medicamentoId} x${detalle.cantidad}`
+            : prev.medicacionPrescrita,
+      }))
+      setFeedback(`Receta creada (CU08): #${data.recetaMedicaId}.`)
+      setPrescriptionDraft({
+        medicamentoId: '',
+        cantidad: '1',
+        dosis: '',
+        viaAdministracion: '',
+        frecuenciaHoras: '',
+        duracionDias: '',
+      })
+    } catch (error: any) {
+      const message = error?.response?.data?.errorMessage || 'No se pudo crear la receta.'
+      setFeedback(message)
+    } finally {
       setLoadingAction(false)
     }
   }
@@ -491,6 +621,95 @@ const AppointmentAttentionInProgress: React.FC = () => {
               <aside className={`${focusMode ? '' : '2xl:col-span-4'} rounded-xl border border-slate-300 bg-gradient-to-b from-white to-slate-50 shadow-sm p-4 space-y-3`}>
                 <h3 className="text-base font-semibold text-slate-900">Complementos clínicos</h3>
                 <p className="text-xs text-slate-600">Completa estos campos solo cuando aplique a la consulta actual.</p>
+
+                <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-2">
+                  <p className="text-xs font-semibold text-violet-900">CU07 · Generar orden de laboratorio</p>
+                  <input
+                    value={labOrderDraft.nombreExamen}
+                    onChange={(event) => setLabOrderDraft((prev) => ({ ...prev, nombreExamen: event.target.value }))}
+                    placeholder="Nombre del examen"
+                    className="w-full px-3 py-2 rounded-lg border border-violet-200 bg-white text-sm"
+                  />
+                  <input
+                    value={labOrderDraft.tipoMuestra}
+                    onChange={(event) => setLabOrderDraft((prev) => ({ ...prev, tipoMuestra: event.target.value }))}
+                    placeholder="Tipo de muestra (opcional)"
+                    className="w-full px-3 py-2 rounded-lg border border-violet-200 bg-white text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void createLaboratoryOrder()}
+                    disabled={loadingAction}
+                    className="w-full px-3 py-2 rounded-lg bg-violet-700 hover:bg-violet-800 text-white text-xs font-semibold disabled:opacity-60"
+                  >
+                    Crear orden CU07
+                  </button>
+                </div>
+
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-amber-900">CU08 · Crear receta médica</p>
+                    <button
+                      type="button"
+                      onClick={() => void loadMedicines()}
+                      className="px-2 py-1 rounded border border-amber-300 bg-white text-[11px] text-amber-800 hover:bg-amber-100"
+                    >
+                      Ver inventario
+                    </button>
+                  </div>
+                  <input
+                    value={prescriptionDraft.medicamentoId}
+                    onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, medicamentoId: event.target.value }))}
+                    placeholder="medicamentoId"
+                    className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm"
+                  />
+                  <input
+                    value={prescriptionDraft.cantidad}
+                    onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, cantidad: event.target.value }))}
+                    placeholder="Cantidad"
+                    className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm"
+                  />
+                  <input
+                    value={prescriptionDraft.dosis}
+                    onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, dosis: event.target.value }))}
+                    placeholder="Dosis (opcional)"
+                    className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm"
+                  />
+                  <input
+                    value={prescriptionDraft.viaAdministracion}
+                    onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, viaAdministracion: event.target.value }))}
+                    placeholder="Vía administración (opcional)"
+                    className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={prescriptionDraft.frecuenciaHoras}
+                      onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, frecuenciaHoras: event.target.value }))}
+                      placeholder="Frecuencia h"
+                      className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm"
+                    />
+                    <input
+                      value={prescriptionDraft.duracionDias}
+                      onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, duracionDias: event.target.value }))}
+                      placeholder="Duración días"
+                      className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm"
+                    />
+                  </div>
+                  {medicines.length > 0 && (
+                    <p className="text-[11px] text-amber-800">
+                      Inventario cargado: {medicines.slice(0, 3).map((m) => `${m.medicamentoId}-${m.nombre}`).join(' · ')}
+                      {medicines.length > 3 ? ' ...' : ''}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void createPrescription()}
+                    disabled={loadingAction}
+                    className="w-full px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold disabled:opacity-60"
+                  >
+                    Crear receta CU08
+                  </button>
+                </div>
 
                 <textarea
                   value={form.ordenLaboratorio}

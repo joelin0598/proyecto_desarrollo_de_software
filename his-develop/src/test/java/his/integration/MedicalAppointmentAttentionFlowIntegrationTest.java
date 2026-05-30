@@ -188,10 +188,16 @@ class MedicalAppointmentAttentionFlowIntegrationTest {
                 "RN13: closeAttention debe cambiar el estado a ATENDIDA");
         assertEquals("Sin patologías agudas. Chequeo rutinario normal.", cierre.getDiagnostico());
         assertEquals(Boolean.TRUE, cierre.getRequiereSeguimiento());
+        assertNotNull(cierre.getCitaSeguimientoId(),
+                "FA03: al marcar seguimiento debe generarse una cita tentativo enlazada");
 
         var detalleGuardado = appointmentDetailsJpaRepository.findById(detalleId).orElseThrow();
         assertEquals(Boolean.TRUE, detalleGuardado.getRequiereSeguimiento(),
                 "El campo requiereSeguimiento debe persistirse en cita_medica_detalle");
+        assertNotNull(detalleGuardado.getCitaSeguimiento(),
+                "FA03: el detalle debe enlazar la cita de seguimiento tentativo");
+        assertEquals("PROGRAMADA", detalleGuardado.getCitaSeguimiento().getEstadoCita().name());
+        assertEquals("PAGO_PENDIENTE", detalleGuardado.getCitaSeguimiento().getEstadoAdministrativo().name());
 
         // Verificar en BD que el estado cambió a ATENDIDA
         var citaFinal = appointmentJpaRepository.findById(citaMedicaId).orElseThrow();

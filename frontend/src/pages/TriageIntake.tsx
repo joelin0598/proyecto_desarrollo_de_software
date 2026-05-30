@@ -168,8 +168,17 @@ function getPriorityStatusChip(
   }
 }
 
-function validateStep(formData: TriageFormData, step: TriageStep): string | null {
+function validateStep(
+  formData: TriageFormData,
+  step: TriageStep,
+  options?: { skipPersonalAndEmergency?: boolean }
+): string | null {
+  const skipPersonalAndEmergency = options?.skipPersonalAndEmergency === true
+
   if (step === 'PERSONAL') {
+    if (skipPersonalAndEmergency) {
+      return null
+    }
     if (formData.flowType === 'WITH_APPOINTMENT') {
       const citaId = Number(formData.citaMedicaId)
       if (!Number.isInteger(citaId) || citaId <= 0) {
@@ -192,6 +201,9 @@ function validateStep(formData: TriageFormData, step: TriageStep): string | null
   }
 
   if (step === 'EMERGENCY') {
+    if (skipPersonalAndEmergency) {
+      return null
+    }
     if (formData.flowType === 'WITH_APPOINTMENT') {
       return null
     }
@@ -504,9 +516,13 @@ const TriageIntake: React.FC = () => {
     }
   }
 
+  const shouldSkipPersonalAndEmergency = preloadedFromDpiSearch && formData.flowType === 'WALK_IN'
+
    const goNextStep = async () => {
      if (currentStep.key === 'PERSONAL' && formData.flowType === 'WITH_APPOINTMENT') {
-       const validationError = validateStep(formData, 'PERSONAL')
+       const validationError = validateStep(formData, 'PERSONAL', {
+         skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+       })
        if (validationError) {
          setError(validationError)
          return
@@ -518,7 +534,9 @@ const TriageIntake: React.FC = () => {
 
      // Si viene de búsqueda por DPI y está en PERSONAL, salta directamente a INSURANCE
      if (currentStep.key === 'PERSONAL' && preloadedFromDpiSearch) {
-       const validationError = validateStep(formData, 'PERSONAL')
+       const validationError = validateStep(formData, 'PERSONAL', {
+         skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+       })
        if (validationError) {
          setError(validationError)
          return
@@ -530,7 +548,9 @@ const TriageIntake: React.FC = () => {
 
      // Si viene de búsqueda por DPI y está en EMERGENCY, salta directamente a INSURANCE
      if (currentStep.key === 'EMERGENCY' && preloadedFromDpiSearch) {
-       const validationError = validateStep(formData, 'EMERGENCY')
+       const validationError = validateStep(formData, 'EMERGENCY', {
+         skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+       })
        if (validationError) {
          setError(validationError)
          return
@@ -540,7 +560,9 @@ const TriageIntake: React.FC = () => {
        return
      }
 
-     const validationError = validateStep(formData, currentStep.key)
+     const validationError = validateStep(formData, currentStep.key, {
+       skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+     })
      if (validationError) {
        setError(validationError)
        return
@@ -593,11 +615,24 @@ const TriageIntake: React.FC = () => {
 
     const validationError =
       formData.flowType === 'WITH_APPOINTMENT'
-        ? validateStep(formData, 'PERSONAL') ?? validateStep(formData, 'VITALS')
-        : validateStep(formData, 'PERSONAL')
-          ?? validateStep(formData, 'EMERGENCY')
-          ?? validateStep(formData, 'INSURANCE')
-          ?? validateStep(formData, 'VITALS')
+        ? validateStep(formData, 'PERSONAL', {
+            skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+          })
+          ?? validateStep(formData, 'VITALS', {
+            skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+          })
+        : validateStep(formData, 'PERSONAL', {
+            skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+          })
+          ?? validateStep(formData, 'EMERGENCY', {
+            skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+          })
+          ?? validateStep(formData, 'INSURANCE', {
+            skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+          })
+          ?? validateStep(formData, 'VITALS', {
+            skipPersonalAndEmergency: shouldSkipPersonalAndEmergency,
+          })
 
     if (validationError) {
       setError(validationError)

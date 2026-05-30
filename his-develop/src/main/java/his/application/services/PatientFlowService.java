@@ -93,9 +93,12 @@ public class PatientFlowService {
     public PatientRegisterResponse register(PatientRegisterRequest req, String emailPersonal) {
         HospitalStaff staff = resolveStaff(emailPersonal);
 
-        PatientAvailabilityResponse availability = checkAvailability(req.getDpi(), req.getEmailContacto());
-        if (!availability.isAvailable()) {
-            throw new IllegalArgumentException(availability.getMessage());
+        Patient existingByDpi = patientRepository.findByDpi(req.getDpi()).orElse(null);
+        if (existingByDpi == null) {
+            PatientAvailabilityResponse availability = checkAvailability(req.getDpi(), req.getEmailContacto());
+            if (!availability.isAvailable()) {
+                throw new IllegalArgumentException(availability.getMessage());
+            }
         }
 
         if (req.getMetodoPago() == null) {
@@ -107,21 +110,26 @@ public class PatientFlowService {
             throw new IllegalArgumentException("FA04: " + paymentResult.message());
         }
 
-        boolean nuevo = true;
-        Patient patient = Patient.builder().build();
+        boolean nuevo = existingByDpi == null;
+        Patient patient = existingByDpi != null ? existingByDpi : Patient.builder().build();
 
-        patient.setNombreCompleto(req.getNombreCompleto());
-        patient.setDpi(req.getDpi());
-        patient.setFechaNacimiento(req.getFechaNacimiento());
-        patient.setGenero(req.getGenero());
-        patient.setTelefono(req.getTelefono());
-        patient.setEmailContacto(req.getEmailContacto());
-        patient.setDireccion(req.getDireccion());
-        patient.setAseguradoraId(req.getAseguradoraId());
-        patient.setPolizaSeguro(req.getPolizaSeguro());
-        patient.setContactoEmergencia(req.getContactoEmergencia());
-        patient.setTelefonoEmergencia(req.getTelefonoEmergencia());
+        // FA06: cuando el paciente ya existe, preserva y reutiliza su expediente para fases 1 y 2.
+        patient.setNombreCompleto(resolveString(req.getNombreCompleto(), patient.getNombreCompleto()));
+        patient.setDpi(resolveString(req.getDpi(), patient.getDpi()));
+        patient.setFechaNacimiento(req.getFechaNacimiento() != null ? req.getFechaNacimiento() : patient.getFechaNacimiento());
+        patient.setGenero(req.getGenero() != null ? req.getGenero() : patient.getGenero());
+        patient.setTelefono(resolveString(req.getTelefono(), patient.getTelefono()));
+        patient.setEmailContacto(resolveString(req.getEmailContacto(), patient.getEmailContacto()));
+        patient.setDireccion(resolveString(req.getDireccion(), patient.getDireccion()));
+        patient.setAseguradoraId(req.getAseguradoraId() != null ? req.getAseguradoraId() : patient.getAseguradoraId());
+        patient.setPolizaSeguro(resolveString(req.getPolizaSeguro(), patient.getPolizaSeguro()));
+        patient.setContactoEmergencia(resolveString(req.getContactoEmergencia(), patient.getContactoEmergencia()));
+        patient.setTelefonoEmergencia(resolveString(req.getTelefonoEmergencia(), patient.getTelefonoEmergencia()));
         patient = patientRepository.save(patient);
+
+        if (!nuevo) {
+            log.info("FA06: Reutilizando expediente existente para DPI={} pacienteId={}", patient.getDpi(), patient.getPacienteId());
+        }
 
 
         MedicalAppointment cita = appointmentRepository.save(MedicalAppointment.builder()
@@ -149,6 +157,13 @@ public class PatientFlowService {
                 .pagoValidado(true)
                 .mensaje("Registro completado y pago validado")
                 .build();
+    }
+
+    private String resolveString(String requestedValue, String fallbackValue) {
+        if (requestedValue == null || requestedValue.isBlank()) {
+            return fallbackValue;
+        }
+        return requestedValue;
     }
 
     @Transactional

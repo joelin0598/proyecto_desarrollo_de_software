@@ -100,7 +100,7 @@ class PatientFlowServiceTest {
     }
 
     @Test
-    void register_throwsWhenDpiAlreadyExists() {
+    void register_reusesExistingPatientByDpi_FA06() {
         PatientRegisterRequest req = new PatientRegisterRequest();
         req.setNombreCompleto("Ana Torres");
         req.setDpi("1234567890123");
@@ -108,13 +108,73 @@ class PatientFlowServiceTest {
         req.setContactoEmergencia("Pedro Torres");
         req.setTelefonoEmergencia("55551234");
         req.setMetodoPago(PaymentOption.TARJETA);
+        req.setBancoTarjeta("Banco Demo");
+        req.setNumeroTarjeta("4111111111111111");
+        req.setFechaVencimientoTarjeta("12/30");
+        req.setNombreTitularTarjeta("Ana Torres");
+        req.setCvc("123");
 
         mockStaff();
-        when(patientRepository.existsByDpi("1234567890123")).thenReturn(true);
+        when(patientRepository.findByDpi("1234567890123")).thenReturn(Optional.of(
+                Patient.builder()
+                        .pacienteId(33L)
+                        .dpi("1234567890123")
+                        .nombreCompleto("Ana Histórica")
+                        .emailContacto("ana.historica@email.com")
+                        .contactoEmergencia("Contacto Histórico")
+                        .telefonoEmergencia("55550000")
+                        .build()
+        ));
+        when(paymentValidationService.validateForTriage(any(TriageRequest.class)))
+                .thenReturn(new PaymentValidationService.PaymentValidationResult(true, "OK"));
+        when(patientRepository.save(any(Patient.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(appointmentRepository.save(any(MedicalAppointment.class))).thenReturn(MedicalAppointment.builder().citaMedicaId(20L).build());
 
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> service.register(req, "recepcion@hospital.com"));
-        assertEquals("El DPI ya fue registrado previamente.", ex.getMessage());
+        var resp = service.register(req, "recepcion@hospital.com");
+
+        assertEquals(33L, resp.getPacienteId());
+        assertEquals(20L, resp.getCitaMedicaId());
+        assertEquals(false, resp.isPacienteNuevo());
+    }
+
+    @Test
+    void register_keepsExistingEmail_whenRequestEmailIsBlank_FA06() {
+        PatientRegisterRequest req = new PatientRegisterRequest();
+        req.setNombreCompleto("Ana Torres");
+        req.setDpi("1234567890123");
+        req.setGenero(PatientGender.FEMENINO);
+        req.setContactoEmergencia("Pedro Torres");
+        req.setTelefonoEmergencia("55551234");
+        req.setMetodoPago(PaymentOption.TARJETA);
+        req.setBancoTarjeta("Banco Demo");
+        req.setNumeroTarjeta("4111111111111111");
+        req.setFechaVencimientoTarjeta("12/30");
+        req.setNombreTitularTarjeta("Ana Torres");
+        req.setCvc("123");
+        req.setEmailContacto("   ");
+
+        mockStaff();
+        when(patientRepository.findByDpi("1234567890123")).thenReturn(Optional.of(
+                Patient.builder()
+                        .pacienteId(44L)
+                        .dpi("1234567890123")
+                        .nombreCompleto("Ana Histórica")
+                        .emailContacto("ana.hist@email.com")
+                        .contactoEmergencia("Contacto Histórico")
+                        .telefonoEmergencia("55550000")
+                        .build()
+        ));
+        when(paymentValidationService.validateForTriage(any(TriageRequest.class)))
+                .thenReturn(new PaymentValidationService.PaymentValidationResult(true, "OK"));
+        when(patientRepository.save(any(Patient.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(appointmentRepository.save(any(MedicalAppointment.class))).thenReturn(MedicalAppointment.builder().citaMedicaId(30L).build());
+
+        service.register(req, "recepcion@hospital.com");
+
+        verify(patientRepository).save(argThat(p ->
+                "ana.hist@email.com".equals(p.getEmailContacto())
+                        && "Pedro Torres".equals(p.getContactoEmergencia())
+                        && "55551234".equals(p.getTelefonoEmergencia())));
     }
 
     @Test
