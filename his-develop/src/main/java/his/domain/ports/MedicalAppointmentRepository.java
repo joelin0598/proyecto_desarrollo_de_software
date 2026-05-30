@@ -12,6 +12,12 @@ public interface MedicalAppointmentRepository {
 
     boolean existsByPersonalIdAndDateTime(Long personalId, LocalDate fechaCita, LocalTime horaCita);
 
+    // CU04: evita múltiples citas del mismo paciente en la misma fecha.
+    boolean existsByPacienteIdAndFecha(Long pacienteId, LocalDate fechaCita);
+
+    // CU04: evita cita duplicada exacta del mismo paciente en fecha+hora.
+    boolean existsByPacienteIdAndDateTime(Long pacienteId, LocalDate fechaCita, LocalTime horaCita);
+
     List<MedicalAppointment> findAllOrderByDateTimeDesc();
 
     List<MedicalAppointment> findByPacienteIdOrderByDateTimeDesc(Long pacienteId);

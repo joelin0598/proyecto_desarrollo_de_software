@@ -16,6 +16,19 @@ public interface MedicalAppointmentJpaRepository extends JpaRepository<MedicalAp
             LocalTime horaCita
     );
 
+    boolean existsByPacientePacienteIdAndFechaCitaAndEstadoCitaInAndIsActiveTrue(
+            Long pacienteId,
+            LocalDate fechaCita,
+            List<his.domain.models.StatusAppointment> estados
+    );
+
+    boolean existsByPacientePacienteIdAndFechaCitaAndHoraCitaAndEstadoCitaInAndIsActiveTrue(
+            Long pacienteId,
+            LocalDate fechaCita,
+            LocalTime horaCita,
+            List<his.domain.models.StatusAppointment> estados
+    );
+
     List<MedicalAppointmentJpaEntity> findAllByOrderByFechaCitaDescHoraCitaDesc();
 
     List<MedicalAppointmentJpaEntity> findByPacientePacienteIdOrderByFechaCitaDescHoraCitaDesc(Long pacienteId);

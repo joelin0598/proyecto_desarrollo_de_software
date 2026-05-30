@@ -46,6 +46,21 @@ public class AppointmentService implements AppointmentUseCase {
 
         validateScheduleRules(request.getFechaCita(), request.getHoraCita());
 
+        if (medicalAppointmentRepository.existsByPacienteIdAndDateTime(
+                patient.getPacienteId(),
+                request.getFechaCita(),
+                request.getHoraCita()
+        )) {
+            throw new IllegalArgumentException("El paciente ya tiene una cita programada para ese horario.");
+        }
+
+        if (medicalAppointmentRepository.existsByPacienteIdAndFecha(
+                patient.getPacienteId(),
+                request.getFechaCita()
+        )) {
+            throw new IllegalArgumentException("El paciente ya tiene una cita programada para esa fecha.");
+        }
+
         if (medicalAppointmentRepository.existsByPersonalIdAndDateTime(
                 doctor.getPersonalId(),
                 request.getFechaCita(),
@@ -169,7 +184,7 @@ public class AppointmentService implements AppointmentUseCase {
 
         // RN05: minimo 24 horas de anticipacion
         if (appointmentDateTime.isBefore(now.plusHours(24))) {
-            throw new IllegalArgumentException("La cita debe programarse con al menos 24 horas de anticipacion");
+            throw new IllegalArgumentException("Debe agendar con al menos 24 horas de anticipacion.");
         }
 
         // RN05: horario institucional 08:00 a 16:30

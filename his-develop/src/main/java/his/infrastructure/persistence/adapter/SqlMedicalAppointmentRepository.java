@@ -47,6 +47,25 @@ public class SqlMedicalAppointmentRepository implements MedicalAppointmentReposi
     }
 
     @Override
+    public boolean existsByPacienteIdAndFecha(Long pacienteId, LocalDate fechaCita) {
+        return medicalAppointmentJpaRepository
+                .existsByPacientePacienteIdAndFechaCitaAndEstadoCitaInAndIsActiveTrue(
+                        pacienteId,
+                        fechaCita,
+                        List.of(StatusAppointment.PROGRAMADA, StatusAppointment.EN_CURSO));
+    }
+
+    @Override
+    public boolean existsByPacienteIdAndDateTime(Long pacienteId, LocalDate fechaCita, LocalTime horaCita) {
+        return medicalAppointmentJpaRepository
+                .existsByPacientePacienteIdAndFechaCitaAndHoraCitaAndEstadoCitaInAndIsActiveTrue(
+                        pacienteId,
+                        fechaCita,
+                        horaCita,
+                        List.of(StatusAppointment.PROGRAMADA, StatusAppointment.EN_CURSO));
+    }
+
+    @Override
     public List<MedicalAppointment> findAllOrderByDateTimeDesc() {
         return medicalAppointmentJpaRepository.findAllByOrderByFechaCitaDescHoraCitaDesc().stream()
                 .map(MedicalAppointmentMapper::toDomain)

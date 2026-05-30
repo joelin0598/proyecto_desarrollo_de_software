@@ -63,6 +63,10 @@ class AppointmentServiceTest {
         when(patientRepository.findById(20L)).thenReturn(Optional.of(Patient.builder().pacienteId(20L).dpi("1234567890123").build()));
         when(hospitalStaffRepository.findById(30L)).thenReturn(Optional.of(HospitalStaff.builder().personalId(30L).rol(Role.DOCTOR).build()));
         when(specialtyCatalogRepository.findById(5L)).thenReturn(Optional.empty());
+        when(medicalAppointmentRepository.existsByPacienteIdAndDateTime(20L, LocalDate.now().plusDays(2), LocalTime.of(8, 0)))
+                .thenReturn(false);
+        when(medicalAppointmentRepository.existsByPacienteIdAndFecha(20L, LocalDate.now().plusDays(2)))
+                .thenReturn(false);
         when(medicalAppointmentRepository.existsByPersonalIdAndDateTime(30L, LocalDate.now().plusDays(2), LocalTime.of(8, 0)))
                 .thenReturn(false);
         when(paymentValidationService.validateForAppointment(any(ScheduleAppointmentRequest.class)))
@@ -104,6 +108,10 @@ class AppointmentServiceTest {
         when(userRepository.findByEmail(email)).thenReturn(Optional.of(User.builder().userId(1L).role(Role.RECEPCION).build()));
         when(patientRepository.findById(20L)).thenReturn(Optional.of(Patient.builder().pacienteId(20L).dpi("1234567890123").build()));
         when(hospitalStaffRepository.findById(30L)).thenReturn(Optional.of(HospitalStaff.builder().personalId(30L).rol(Role.DOCTOR).build()));
+        when(medicalAppointmentRepository.existsByPacienteIdAndDateTime(20L, LocalDate.now().plusDays(2), LocalTime.of(8, 30)))
+                .thenReturn(false);
+        when(medicalAppointmentRepository.existsByPacienteIdAndFecha(20L, LocalDate.now().plusDays(2)))
+                .thenReturn(false);
         when(medicalAppointmentRepository.existsByPersonalIdAndDateTime(30L, LocalDate.now().plusDays(2), LocalTime.of(8, 30)))
                 .thenReturn(false);
         when(paymentValidationService.validateForAppointment(any(ScheduleAppointmentRequest.class)))
@@ -160,6 +168,71 @@ class AppointmentServiceTest {
                 () -> appointmentService.scheduleAppointment(request, email));
 
         assertTrue(ex.getMessage().contains("24 horas"));
+        verify(medicalAppointmentRepository, never()).save(any());
+    }
+
+    @Test
+    void scheduleAppointment_rejectsDuplicatePatientSameDayAndTime() {
+        String email = "recepcion@hospital.com";
+        LocalDate fecha = LocalDate.now().plusDays(2);
+        LocalTime hora = LocalTime.of(10, 0);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(User.builder().userId(1L).role(Role.RECEPCION).build()));
+        when(patientRepository.findById(20L)).thenReturn(Optional.of(Patient.builder().pacienteId(20L).dpi("1234567890123").build()));
+        when(hospitalStaffRepository.findById(30L)).thenReturn(Optional.of(HospitalStaff.builder().personalId(30L).rol(Role.DOCTOR).build()));
+        when(medicalAppointmentRepository.existsByPacienteIdAndDateTime(20L, fecha, hora)).thenReturn(true);
+
+        ScheduleAppointmentRequest request = ScheduleAppointmentRequest.builder()
+                .pacienteId(20L)
+                .medicoPersonalId(30L)
+                .fechaCita(fecha)
+                .horaCita(hora)
+                .motivoConsulta("Control general")
+                .metodoPago(PaymentOption.TARJETA)
+                .bancoTarjeta("Banco Demo")
+                .numeroTarjeta("4111111111111111")
+                .fechaVencimientoTarjeta(nextMonth())
+                .nombreTitularTarjeta("JUAN PEREZ")
+                .cvc("123")
+                .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> appointmentService.scheduleAppointment(request, email));
+
+        assertTrue(ex.getMessage().contains("ese horario"));
+        verify(medicalAppointmentRepository, never()).save(any());
+    }
+
+    @Test
+    void scheduleAppointment_rejectsDuplicatePatientSameDay() {
+        String email = "recepcion@hospital.com";
+        LocalDate fecha = LocalDate.now().plusDays(2);
+        LocalTime hora = LocalTime.of(10, 30);
+
+        when(userRepository.findByEmail(email)).thenReturn(Optional.of(User.builder().userId(1L).role(Role.RECEPCION).build()));
+        when(patientRepository.findById(20L)).thenReturn(Optional.of(Patient.builder().pacienteId(20L).dpi("1234567890123").build()));
+        when(hospitalStaffRepository.findById(30L)).thenReturn(Optional.of(HospitalStaff.builder().personalId(30L).rol(Role.DOCTOR).build()));
+        when(medicalAppointmentRepository.existsByPacienteIdAndDateTime(20L, fecha, hora)).thenReturn(false);
+        when(medicalAppointmentRepository.existsByPacienteIdAndFecha(20L, fecha)).thenReturn(true);
+
+        ScheduleAppointmentRequest request = ScheduleAppointmentRequest.builder()
+                .pacienteId(20L)
+                .medicoPersonalId(30L)
+                .fechaCita(fecha)
+                .horaCita(hora)
+                .motivoConsulta("Control general")
+                .metodoPago(PaymentOption.TARJETA)
+                .bancoTarjeta("Banco Demo")
+                .numeroTarjeta("4111111111111111")
+                .fechaVencimientoTarjeta(nextMonth())
+                .nombreTitularTarjeta("JUAN PEREZ")
+                .cvc("123")
+                .build();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> appointmentService.scheduleAppointment(request, email));
+
+        assertTrue(ex.getMessage().contains("esa fecha"));
         verify(medicalAppointmentRepository, never()).save(any());
     }
 
