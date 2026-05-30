@@ -5,7 +5,7 @@ function Footer() {
     <footer className="bg-gray-800 text-gray-300 py-12">
       <div className="container-main">
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-8 mb-8">
-          {/* About */}
+          {/* About **/}
           <div>
             <h3 className="text-white font-bold mb-4 text-lg">HIS</h3>
             <p className="text-sm">
