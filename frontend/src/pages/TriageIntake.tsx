@@ -568,7 +568,7 @@ const TriageIntake: React.FC = () => {
        return
      }
 
-     if (currentStep.key === 'PERSONAL' && formData.flowType === 'WALK_IN') {
+     if (currentStep.key === 'PERSONAL' && formData.flowType === 'WALK_IN' && !preloadedFromDpiSearch) {
        setCheckingAvailability(true)
        try {
          const { data } = await triageAPI.checkAvailability(formData.dpi, formData.email)

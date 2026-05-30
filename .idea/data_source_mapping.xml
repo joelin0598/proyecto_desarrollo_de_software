@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<project version="4">
-  <component name="DataSourcePerFileMappings">
-    <file url="file://$PROJECT_DIR$/his-develop/src/main/resources/db/migration/V5__laboratory_pharmacy_schema.sql" value="e3c78513-9ad3-419d-8abd-e0b616775bf9" />
-  </component>
-</project>

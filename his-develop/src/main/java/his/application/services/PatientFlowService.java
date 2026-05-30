@@ -93,9 +93,12 @@ public class PatientFlowService {
     public PatientRegisterResponse register(PatientRegisterRequest req, String emailPersonal) {
         HospitalStaff staff = resolveStaff(emailPersonal);
 
-        Patient existingByDpi = patientRepository.findByDpi(req.getDpi()).orElse(null);
+        String normalizedDpi = req.getDpi() == null ? "" : req.getDpi().trim();
+        String normalizedEmail = req.getEmailContacto() == null ? null : req.getEmailContacto().trim();
+
+        Patient existingByDpi = patientRepository.findByDpi(normalizedDpi).orElse(null);
         if (existingByDpi == null) {
-            PatientAvailabilityResponse availability = checkAvailability(req.getDpi(), req.getEmailContacto());
+            PatientAvailabilityResponse availability = checkAvailability(normalizedDpi, normalizedEmail);
             if (!availability.isAvailable()) {
                 throw new IllegalArgumentException(availability.getMessage());
             }
@@ -115,11 +118,11 @@ public class PatientFlowService {
 
         // FA06: cuando el paciente ya existe, preserva y reutiliza su expediente para fases 1 y 2.
         patient.setNombreCompleto(resolveString(req.getNombreCompleto(), patient.getNombreCompleto()));
-        patient.setDpi(resolveString(req.getDpi(), patient.getDpi()));
+        patient.setDpi(resolveString(normalizedDpi, patient.getDpi()));
         patient.setFechaNacimiento(req.getFechaNacimiento() != null ? req.getFechaNacimiento() : patient.getFechaNacimiento());
         patient.setGenero(req.getGenero() != null ? req.getGenero() : patient.getGenero());
         patient.setTelefono(resolveString(req.getTelefono(), patient.getTelefono()));
-        patient.setEmailContacto(resolveString(req.getEmailContacto(), patient.getEmailContacto()));
+        patient.setEmailContacto(resolveString(normalizedEmail, patient.getEmailContacto()));
         patient.setDireccion(resolveString(req.getDireccion(), patient.getDireccion()));
         patient.setAseguradoraId(req.getAseguradoraId() != null ? req.getAseguradoraId() : patient.getAseguradoraId());
         patient.setPolizaSeguro(resolveString(req.getPolizaSeguro(), patient.getPolizaSeguro()));

@@ -198,6 +198,59 @@ class PatientFlowServiceTest {
     }
 
     @Test
+    void checkAvailability_trimsDpiAndEmail() {
+        when(patientRepository.existsByDpi("1234567890123")).thenReturn(true);
+        when(patientRepository.existsByEmailContacto("ana@email.com")).thenReturn(true);
+
+        var response = service.checkAvailability(" 1234567890123 ", " ana@email.com ");
+
+        assertEquals(false, response.isAvailable());
+        assertEquals("El DPI y el correo ya fueron registrados previamente.", response.getMessage());
+        verify(patientRepository).existsByDpi("1234567890123");
+        verify(patientRepository).existsByEmailContacto("ana@email.com");
+    }
+
+    @Test
+    void register_trimsDpiAndEmail_whenCheckingExistingPatient() {
+        PatientRegisterRequest req = new PatientRegisterRequest();
+        req.setNombreCompleto("Ana Torres");
+        req.setDpi(" 1234567890123 ");
+        req.setGenero(PatientGender.FEMENINO);
+        req.setContactoEmergencia("Pedro Torres");
+        req.setTelefonoEmergencia("55551234");
+        req.setMetodoPago(PaymentOption.TARJETA);
+        req.setBancoTarjeta("Banco Demo");
+        req.setNumeroTarjeta("4111111111111111");
+        req.setFechaVencimientoTarjeta("12/30");
+        req.setNombreTitularTarjeta("Ana Torres");
+        req.setCvc("123");
+        req.setEmailContacto(" ana@email.com ");
+
+        mockStaff();
+        when(patientRepository.findByDpi("1234567890123")).thenReturn(Optional.of(
+                Patient.builder()
+                        .pacienteId(55L)
+                        .dpi("1234567890123")
+                        .nombreCompleto("Ana Histórica")
+                        .emailContacto("ana.hist@email.com")
+                        .contactoEmergencia("Contacto Histórico")
+                        .telefonoEmergencia("55550000")
+                        .build()
+        ));
+        when(paymentValidationService.validateForTriage(any(TriageRequest.class)))
+                .thenReturn(new PaymentValidationService.PaymentValidationResult(true, "OK"));
+        when(patientRepository.save(any(Patient.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(appointmentRepository.save(any(MedicalAppointment.class))).thenReturn(MedicalAppointment.builder().citaMedicaId(21L).build());
+
+        service.register(req, "recepcion@hospital.com");
+
+        verify(patientRepository).findByDpi("1234567890123");
+        verify(patientRepository).save(argThat(p ->
+                "1234567890123".equals(p.getDpi())
+                        && "ana@email.com".equals(p.getEmailContacto())));
+    }
+
+    @Test
     void triage_updatesAppointment_whenPaid() {
         mockStaff();
 

@@ -179,6 +179,7 @@ describe('TriageIntake quality checks', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Guardar triaje' }))
 
     await waitFor(() => expect(triageAPI.register).toHaveBeenCalled())
+    expect(triageAPI.checkAvailability).not.toHaveBeenCalled()
     expect(screen.queryByText('El correo electronico es obligatorio.')).not.toBeInTheDocument()
   })
 })
