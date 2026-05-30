@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { authAPI, pharmacyAPI, type MedicineResponse, type PrescriptionResponse } from '@/services/api'
 import AdminSidebar from '@/components/ui/AdminSidebar'
@@ -8,6 +8,7 @@ import StatusChip from '@/components/ui/StatusChip'
 
 const PharmacyWorkbench: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user, logout } = useAuth()
   const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-pharmacy', false)
   const [loadingLogout, setLoadingLogout] = useState(false)
@@ -49,6 +50,10 @@ const PharmacyWorkbench: React.FC = () => {
     try {
       const { data } = await pharmacyAPI.getPrescriptionByDetalle(Number(citaDetalleId))
       setPrescription(data)
+      const firstPending = data.items.find((item) => !item.despachado) || data.items[0]
+      if (firstPending) {
+        setRecetaDetalleId(String(firstPending.recetaMedicaDetalleId))
+      }
       setMessage(`Receta ${data.recetaMedicaId} cargada correctamente.`)
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'No se pudo cargar la receta.')
@@ -57,6 +62,12 @@ const PharmacyWorkbench: React.FC = () => {
       setBusy(false)
     }
   }
+
+  React.useEffect(() => {
+    const detalle = searchParams.get('citaMedicaDetalleId')
+    if (!detalle) return
+    setCitaDetalleId(detalle)
+  }, [searchParams])
 
   const handleDispense = async () => {
     resetFeedback()
@@ -149,6 +160,7 @@ const PharmacyWorkbench: React.FC = () => {
                 Despachar
               </button>
             </div>
+            <p className="text-xs text-slate-600">Tip: al buscar la receta, se autocompleta el primer detalle pendiente para despacho.</p>
             <button type="button" onClick={() => void handleLoadMedicines()} disabled={busy} className="px-3 py-2 rounded-lg border border-blue-300 text-blue-700 text-sm hover:bg-blue-50 disabled:opacity-60">
               Cargar inventario
             </button>

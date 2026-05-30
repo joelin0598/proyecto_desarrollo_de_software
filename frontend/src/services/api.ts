@@ -430,6 +430,9 @@ export const laboratoryAPI = {
   createOrder: (data: CreateLaboratoryOrderRequest) =>
     api.post<LaboratoryOrderResponse>('/laboratory/orders', data),
 
+  getOrdersByDetalle: (citaMedicaDetalleId: number) =>
+    api.get<LaboratoryOrderResponse[]>(`/laboratory/orders/by-detalle/${citaMedicaDetalleId}`),
+
   receiveSample: (ordenLaboratorioId: number) =>
     api.patch<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}/receive`),
 

@@ -5,9 +5,11 @@ import StatusChip from '@/components/ui/StatusChip'
 import { useAuth } from '@/context/AuthContext'
 import { authAPI, laboratoryAPI, type LaboratoryOrderResponse } from '@/services/api'
 import { useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 
 const LaboratoryWorkbench: React.FC = () => {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { user, logout } = useAuth()
   const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-laboratory', false)
   const [loadingLogout, setLoadingLogout] = useState(false)
@@ -31,7 +33,9 @@ const LaboratoryWorkbench: React.FC = () => {
   })
 
   const [orderIdInput, setOrderIdInput] = useState('')
+  const [detalleIdInput, setDetalleIdInput] = useState('')
   const [rejectReason, setRejectReason] = useState('')
+  const [ordersByDetalle, setOrdersByDetalle] = useState<LaboratoryOrderResponse[]>([])
   const [currentOrder, setCurrentOrder] = useState<LaboratoryOrderResponse | null>(null)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
@@ -60,6 +64,8 @@ const LaboratoryWorkbench: React.FC = () => {
       })
       setCurrentOrder(data)
       setOrderIdInput(String(data.ordenLaboratorioId))
+      setDetalleIdInput(String(data.citaMedicaDetalleId))
+      setOrdersByDetalle((prev) => [data, ...prev.filter((item) => item.ordenLaboratorioId !== data.ordenLaboratorioId)])
       setMessage(`Orden creada correctamente (ID ${data.ordenLaboratorioId}).`)
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'No se pudo crear la orden de laboratorio.')
@@ -67,6 +73,52 @@ const LaboratoryWorkbench: React.FC = () => {
       setBusy(false)
     }
   }
+
+  const handleGetOrdersByDetalle = async () => {
+    resetFeedback()
+    if (!detalleIdInput.trim()) {
+      setError('Ingresa citaMedicaDetalleId para listar órdenes vinculadas.')
+      return
+    }
+    setBusy(true)
+    try {
+      const { data } = await laboratoryAPI.getOrdersByDetalle(Number(detalleIdInput))
+      setOrdersByDetalle(data)
+      if (data.length > 0) {
+        setCurrentOrder(data[0])
+        setOrderIdInput(String(data[0].ordenLaboratorioId))
+      }
+      setMessage(data.length > 0
+        ? `Se encontraron ${data.length} orden(es) para el detalle #${detalleIdInput}.`
+        : `No hay órdenes de laboratorio para el detalle #${detalleIdInput}.`)
+    } catch (err: any) {
+      setError(err.response?.data?.errorMessage || 'No se pudieron cargar órdenes por detalle de cita.')
+      setOrdersByDetalle([])
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  React.useEffect(() => {
+    const detalle = searchParams.get('citaMedicaDetalleId')
+    if (!detalle) return
+    setDetalleIdInput(detalle)
+    void (async () => {
+      setBusy(true)
+      try {
+        const { data } = await laboratoryAPI.getOrdersByDetalle(Number(detalle))
+        setOrdersByDetalle(data)
+        if (data.length > 0) {
+          setCurrentOrder(data[0])
+          setOrderIdInput(String(data[0].ordenLaboratorioId))
+        }
+      } catch {
+        // No bloquear la pantalla si el detalle no tiene órdenes.
+      } finally {
+        setBusy(false)
+      }
+    })()
+  }, [searchParams])
 
   const handleGetOrder = async () => {
     resetFeedback()
@@ -229,6 +281,17 @@ const LaboratoryWorkbench: React.FC = () => {
             <h3 className="font-semibold text-slate-900">2) Gestionar muestra</h3>
             <div className="flex gap-2">
               <input
+                value={detalleIdInput}
+                onChange={(e) => setDetalleIdInput(e.target.value)}
+                placeholder="citaMedicaDetalleId"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              />
+              <button type="button" onClick={() => void handleGetOrdersByDetalle()} disabled={busy} className="px-3 py-2 rounded-lg border border-blue-300 text-blue-700 text-sm hover:bg-blue-50 disabled:opacity-60">
+                Ver órdenes
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <input
                 value={orderIdInput}
                 onChange={(e) => setOrderIdInput(e.target.value)}
                 placeholder="ordenLaboratorioId"
@@ -252,6 +315,26 @@ const LaboratoryWorkbench: React.FC = () => {
                 Rechazar muestra
               </button>
             </div>
+            {ordersByDetalle.length > 0 && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-2.5">
+                <p className="text-xs font-semibold text-blue-900 mb-2">Órdenes encontradas para detalle #{detalleIdInput}</p>
+                <div className="flex flex-wrap gap-2">
+                  {ordersByDetalle.map((order) => (
+                    <button
+                      key={order.ordenLaboratorioId}
+                      type="button"
+                      onClick={() => {
+                        setOrderIdInput(String(order.ordenLaboratorioId))
+                        setCurrentOrder(order)
+                      }}
+                      className="px-2.5 py-1 rounded-lg border border-blue-200 bg-white text-xs text-blue-800 hover:bg-blue-100"
+                    >
+                      #{order.ordenLaboratorioId} · {order.estado}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleAddResult} className="rounded-xl border border-blue-200 bg-white p-5 shadow-sm space-y-3 xl:col-span-2">
