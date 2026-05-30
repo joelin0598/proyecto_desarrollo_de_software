@@ -38,12 +38,16 @@ const AppointmentAttentionWorkspace: React.FC = () => {
   const { user, logout } = useAuth()
   const { collapsed: sidebarCollapsed, toggleCollapsed } = useSidebarPreference('admin-shell', false)
 
+  const lastAnnouncedCitaIdRef = React.useRef<number | null>(null)
+  const calloutTimerRef = React.useRef<number | null>(null)
+
   const [loadingLogout, setLoadingLogout] = React.useState(false)
   const [loadingData, setLoadingData] = React.useState(true)
   const [loadingAction, setLoadingAction] = React.useState(false)
   const [feedback, setFeedback] = React.useState<string | null>(null)
   const [queue, setQueue] = React.useState<MedicalAppointmentQueueItemResponse[]>([])
   const [currentAttention, setCurrentAttention] = React.useState<MedicalAppointmentAttentionResponse | null>(null)
+  const [activeCallout, setActiveCallout] = React.useState<string | null>(null)
 
   const handleLogout = async () => {
     setLoadingLogout(true)
@@ -81,10 +85,62 @@ const AppointmentAttentionWorkspace: React.FC = () => {
     void syncData()
   }, [syncData])
 
-  const openAttention = async (citaMedicaId: number) => {
+  React.useEffect(() => {
+    return () => {
+      if (calloutTimerRef.current !== null) {
+        window.clearTimeout(calloutTimerRef.current)
+      }
+    }
+  }, [])
+
+  const announceAttentionCall = React.useCallback((item: MedicalAppointmentQueueItemResponse) => {
+    if (lastAnnouncedCitaIdRef.current === item.citaMedicaId) {
+      return
+    }
+
+    const doctorName = `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || user?.email || 'médico asignado'
+    const clinicName = (item.especialidadNombre || 'Consulta general').trim()
+    const patientName = (item.pacienteNombre || 'Paciente').trim()
+
+    const message = `Paciente ${patientName}, pasar con el doctor ${doctorName} a la clínica ${clinicName}.`
+
+    lastAnnouncedCitaIdRef.current = item.citaMedicaId
+    setActiveCallout(message)
+
+    if (calloutTimerRef.current !== null) {
+      window.clearTimeout(calloutTimerRef.current)
+    }
+    calloutTimerRef.current = window.setTimeout(() => {
+      setActiveCallout(null)
+      calloutTimerRef.current = null
+    }, 10000)
+
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      console.warn('speechSynthesis no disponible en este navegador.')
+      return
+    }
+
+    try {
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(message)
+      utterance.lang = 'es-GT'
+      utterance.rate = 1
+      utterance.pitch = 1
+      utterance.volume = 1
+      utterance.onerror = () => {
+        console.warn('No fue posible reproducir el llamado por voz (bloqueo o error del navegador).')
+      }
+      window.speechSynthesis.speak(utterance)
+    } catch {
+      console.warn('No fue posible inicializar speechSynthesis para el llamado de paciente.')
+    }
+  }, [user?.email, user?.firstName, user?.lastName])
+
+  const openAttention = async (item: MedicalAppointmentQueueItemResponse) => {
     setLoadingAction(true)
     try {
-      await appointmentAttentionAPI.open(citaMedicaId)
+      await appointmentAttentionAPI.open(item.citaMedicaId)
+      announceAttentionCall(item)
       setFeedback('Atención iniciada. Redirigiendo a la vista clínica...')
       navigate('/doctor/appointments/attention/current')
     } catch (error: any) {
@@ -121,6 +177,13 @@ const AppointmentAttentionWorkspace: React.FC = () => {
           </div>
           <StatusChip label={currentAttention ? 'Atención en curso' : 'Sin atención activa'} tone={currentAttention ? 'emerald' : 'slate'} />
         </div>
+
+        {activeCallout && (
+          <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+            <p className="font-semibold">Llamado en curso</p>
+            <p className="mt-1">{activeCallout}</p>
+          </div>
+        )}
 
         {feedback && (
           <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900">
@@ -205,7 +268,7 @@ const AppointmentAttentionWorkspace: React.FC = () => {
                         <td className="px-3 py-2.5 text-right">
                           <button
                             type="button"
-                            onClick={() => void openAttention(item.citaMedicaId)}
+                            onClick={() => void openAttention(item)}
                             disabled={loadingAction || !!currentAttention}
                             className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold disabled:opacity-60"
                           >
@@ -226,5 +289,4 @@ const AppointmentAttentionWorkspace: React.FC = () => {
 }
 
 export default AppointmentAttentionWorkspace
-
 

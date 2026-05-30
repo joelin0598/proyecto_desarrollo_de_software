@@ -193,12 +193,10 @@ const AppointmentAttentionInProgress: React.FC = () => {
   }, [currentAttention, draftKey, form])
 
   React.useEffect(() => {
-    return () => {
-      if (!isFinalizingRef.current && currentAttention) {
-        void appointmentAttentionAPI.cancel().catch(() => undefined)
-      }
-    }
-  }, [currentAttention])
+    // Evita cancelar automáticamente por ciclos internos de React (ej. StrictMode en desarrollo).
+    // La cancelación se mantiene explícita en: botón "Cancelar proceso", navegación lateral y logout.
+    return () => undefined
+  }, [])
 
   const appendTemplate = (field: 'evaluacionFisica' | 'diagnostico', text: string) => {
     setForm((prev) => {
