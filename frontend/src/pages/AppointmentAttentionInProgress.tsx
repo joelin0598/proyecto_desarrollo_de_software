@@ -66,6 +66,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
   const [draftRecovered, setDraftRecovered] = React.useState(false)
   const [currentAttention, setCurrentAttention] = React.useState<MedicalAppointmentAttentionResponse | null>(null)
   const [medicines, setMedicines] = React.useState<MedicineResponse[]>([])
+  const [loadingMedicines, setLoadingMedicines] = React.useState(false)
   const [labOrderDraft, setLabOrderDraft] = React.useState({
     nombreExamen: '',
     tipoMuestra: '',
@@ -276,13 +277,25 @@ const AppointmentAttentionInProgress: React.FC = () => {
   }
 
   const loadMedicines = async () => {
+    setLoadingMedicines(true)
     try {
       const response = await pharmacyAPI.listMedicines()
       setMedicines(response.data)
     } catch {
-      // Mantener experiencia ligera: si falla, el médico aún puede ingresar el ID manual.
+      // Mantener experiencia ligera: si falla, el médico aún puede intentar recargar catálogo.
+    } finally {
+      setLoadingMedicines(false)
     }
   }
+
+  React.useEffect(() => {
+    if (!currentAttention) {
+      return
+    }
+    if (medicines.length === 0 && !loadingMedicines) {
+      void loadMedicines()
+    }
+  }, [currentAttention, medicines.length, loadingMedicines])
 
   const createLaboratoryOrder = async () => {
     if (!currentAttention?.citaMedicaDetalleId) {
@@ -326,7 +339,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
     const medicamentoId = Number(prescriptionDraft.medicamentoId)
     const cantidad = Number(prescriptionDraft.cantidad)
     if (!Number.isFinite(medicamentoId) || medicamentoId <= 0) {
-      setFeedback('Ingresa un medicamentoId válido para la receta.')
+      setFeedback('Selecciona un medicamento válido para la receta.')
       return
     }
     if (!Number.isFinite(cantidad) || cantidad <= 0) {
@@ -652,15 +665,26 @@ const AppointmentAttentionInProgress: React.FC = () => {
                       onClick={() => void loadMedicines()}
                       className="px-2 py-1 rounded border border-amber-300 bg-white text-[11px] text-amber-800 hover:bg-amber-100"
                     >
-                      Ver inventario
+                      {loadingMedicines ? 'Cargando...' : 'Ver inventario'}
                     </button>
                   </div>
-                  <input
+                  <select
                     value={prescriptionDraft.medicamentoId}
                     onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, medicamentoId: event.target.value }))}
-                    placeholder="medicamentoId"
                     className="w-full px-3 py-2 rounded-lg border border-amber-200 bg-white text-sm"
-                  />
+                  >
+                    <option value="">Selecciona un medicamento</option>
+                    {medicines.map((medicine) => (
+                      <option key={medicine.medicamentoId} value={medicine.medicamentoId}>
+                        {medicine.nombre} - {medicine.presentacion || 'Sin presentación'} (stock: {medicine.stockActual})
+                      </option>
+                    ))}
+                  </select>
+                  {medicines.length === 0 && !loadingMedicines && (
+                    <p className="text-[11px] text-amber-800">
+                      No hay medicamentos disponibles en catálogo.
+                    </p>
+                  )}
                   <input
                     value={prescriptionDraft.cantidad}
                     onChange={(event) => setPrescriptionDraft((prev) => ({ ...prev, cantidad: event.target.value }))}
@@ -702,7 +726,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => void createPrescription()}
-                    disabled={loadingAction}
+                    disabled={loadingAction || loadingMedicines || medicines.length === 0}
                     className="w-full px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold disabled:opacity-60"
                   >
                     Crear receta CU08
@@ -771,8 +795,3 @@ const AppointmentAttentionInProgress: React.FC = () => {
 }
 
 export default AppointmentAttentionInProgress
-
-
-
-
-
