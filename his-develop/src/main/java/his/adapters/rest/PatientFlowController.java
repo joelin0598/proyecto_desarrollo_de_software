@@ -37,7 +37,7 @@ public class PatientFlowController {
     private final PatientFlowService service;
 
     @GetMapping("/availability")
-    @PreAuthorize("hasAnyAuthority('ADMIN','ENFERMERA','ADMINISTRATIVO','RECEPCION')")
+    @PreAuthorize("hasAnyAuthority('ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
     public ResponseEntity<PatientAvailabilityResponse> checkAvailability(
             @RequestParam String dpi,
             @RequestParam(required = false) String email) {
@@ -45,7 +45,7 @@ public class PatientFlowController {
     }
 
     @GetMapping("/lookup")
-    @PreAuthorize("hasAnyAuthority('ADMIN','ENFERMERA','ADMINISTRATIVO','RECEPCION')")
+    @PreAuthorize("hasAnyAuthority('ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
     public ResponseEntity<PatientLookupResponse> lookupPatientByDpi(@RequestParam String dpi) {
         return service.findPatientByDpi(dpi)
                 .map(ResponseEntity::ok)
@@ -53,7 +53,7 @@ public class PatientFlowController {
     }
 
     @PostMapping("/register")
-    @PreAuthorize("hasAnyAuthority('ADMIN','ENFERMERA','ADMINISTRATIVO','RECEPCION')")
+    @PreAuthorize("hasAnyAuthority('ADMIN','DOCTOR','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
     public ResponseEntity<PatientRegisterResponse> register(
             @Valid @RequestBody PatientRegisterRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {

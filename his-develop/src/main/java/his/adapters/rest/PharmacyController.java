@@ -5,6 +5,8 @@ import his.application.dto.DispenseMedicineRequest;
 import his.application.dto.ErrorResponse;
 import his.application.dto.MedicationReminderResponse;
 import his.application.dto.MedicineResponse;
+import his.application.dto.PharmacyPaymentRequest;
+import his.application.dto.PharmacyPrescriptionLookupResponse;
 import his.application.dto.PrescriptionResponse;
 import his.application.usecases.PharmacyUseCase;
 import io.swagger.v3.oas.annotations.Operation;
@@ -54,6 +56,29 @@ public class PharmacyController {
     @PreAuthorize("hasAnyAuthority('FARMACEUTICO','DOCTOR','ADMIN')")
     public ResponseEntity<PrescriptionResponse> getPrescription(@PathVariable Long citaMedicaDetalleId) {
         return ResponseEntity.ok(useCase.getPrescription(citaMedicaDetalleId));
+    }
+
+    @Operation(summary = "Buscar recetas activas por DPI de paciente")
+    @GetMapping("/prescriptions/by-dpi")
+    @PreAuthorize("hasAnyAuthority('FARMACEUTICO','ADMIN')")
+    public ResponseEntity<PharmacyPrescriptionLookupResponse> getPrescriptionsByDpi(@RequestParam String dpi) {
+        return ResponseEntity.ok(useCase.findPrescriptionsByDpi(dpi));
+    }
+
+    @Operation(summary = "Validar pago de farmacia para receta")
+    @PostMapping("/prescriptions/{recetaMedicaId}/payment")
+    @PreAuthorize("hasAnyAuthority('FARMACEUTICO','ADMIN')")
+    public ResponseEntity<PrescriptionResponse> validatePayment(
+            @PathVariable Long recetaMedicaId,
+            @Valid @RequestBody PharmacyPaymentRequest req) {
+        return ResponseEntity.ok(useCase.validatePrescriptionPayment(recetaMedicaId, req, getEmail()));
+    }
+
+    @Operation(summary = "Despachar receta completa (todos los items pendientes)")
+    @PostMapping("/prescriptions/{recetaMedicaId}/dispense")
+    @PreAuthorize("hasAnyAuthority('FARMACEUTICO','ADMIN')")
+    public ResponseEntity<PrescriptionResponse> dispensePrescription(@PathVariable Long recetaMedicaId) {
+        return ResponseEntity.ok(useCase.dispensePrescription(recetaMedicaId, getEmail()));
     }
 
     @Operation(summary = "Despachar medicamento (RN09 — valida solvencia y stock)")

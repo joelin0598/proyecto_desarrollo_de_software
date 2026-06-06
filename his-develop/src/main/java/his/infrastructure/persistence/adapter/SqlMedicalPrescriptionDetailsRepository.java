@@ -62,6 +62,8 @@ public class SqlMedicalPrescriptionDetailsRepository implements MedicalPrescript
                 .viaAdministracion(e.getViaAdministracion())
                 .frecuenciaHoras(e.getFrecuenciaHoras())
                 .duracionDias(e.getDuracionDias())
+                .stockActual(e.getMedicamento().getStockActual())
+                .precioUnitario(e.getMedicamento().getPrecioUnitario())
                 .despachado(Boolean.TRUE.equals(e.getDespachado()))
                 .pagoValidado(Boolean.TRUE.equals(e.getPagoValidado()))
                 .build();

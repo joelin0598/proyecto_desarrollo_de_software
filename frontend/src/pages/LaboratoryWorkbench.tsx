@@ -7,6 +7,8 @@ import { authAPI, laboratoryAPI, type LaboratoryOrderResponse } from '@/services
 import { useNavigate } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
 
+const MAX_TEXT_LENGTH = 120
+
 const LaboratoryWorkbench: React.FC = () => {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -41,6 +43,21 @@ const LaboratoryWorkbench: React.FC = () => {
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
 
+  const syncCurrentOrder = (order: LaboratoryOrderResponse) => {
+    setCurrentOrder(order)
+    setOrderIdInput(String(order.ordenLaboratorioId))
+    setDetalleIdInput(String(order.citaMedicaDetalleId))
+    setResultPayload((prev) => ({
+      ...prev,
+      ordenLaboratorioId: String(order.ordenLaboratorioId),
+      nombreExamen: order.nombreExamen,
+    }))
+    setOrdersByDetalle((prev) => {
+      const remaining = prev.filter((item) => item.ordenLaboratorioId !== order.ordenLaboratorioId)
+      return [order, ...remaining]
+    })
+  }
+
   const resetFeedback = () => {
     setError('')
     setMessage('')
@@ -55,6 +72,14 @@ const LaboratoryWorkbench: React.FC = () => {
   const handleCreateOrder = async (e: React.FormEvent) => {
     e.preventDefault()
     resetFeedback()
+    if (!createPayload.citaMedicaDetalleId.trim()) {
+      setError('Ingresa citaMedicaDetalleId para crear la orden.')
+      return
+    }
+    if (!createPayload.nombreExamen.trim()) {
+      setError('Ingresa el nombre del examen.')
+      return
+    }
     setBusy(true)
     try {
       const { data } = await laboratoryAPI.createOrder({
@@ -62,10 +87,7 @@ const LaboratoryWorkbench: React.FC = () => {
         nombreExamen: createPayload.nombreExamen.trim(),
         tipoMuestra: createPayload.tipoMuestra.trim() || undefined,
       })
-      setCurrentOrder(data)
-      setOrderIdInput(String(data.ordenLaboratorioId))
-      setDetalleIdInput(String(data.citaMedicaDetalleId))
-      setOrdersByDetalle((prev) => [data, ...prev.filter((item) => item.ordenLaboratorioId !== data.ordenLaboratorioId)])
+      syncCurrentOrder(data)
       setMessage(`Orden creada correctamente (ID ${data.ordenLaboratorioId}).`)
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'No se pudo crear la orden de laboratorio.')
@@ -85,8 +107,9 @@ const LaboratoryWorkbench: React.FC = () => {
       const { data } = await laboratoryAPI.getOrdersByDetalle(Number(detalleIdInput))
       setOrdersByDetalle(data)
       if (data.length > 0) {
-        setCurrentOrder(data[0])
-        setOrderIdInput(String(data[0].ordenLaboratorioId))
+        syncCurrentOrder(data[0])
+      } else {
+        setCurrentOrder(null)
       }
       setMessage(data.length > 0
         ? `Se encontraron ${data.length} orden(es) para el detalle #${detalleIdInput}.`
@@ -109,8 +132,7 @@ const LaboratoryWorkbench: React.FC = () => {
         const { data } = await laboratoryAPI.getOrdersByDetalle(Number(detalle))
         setOrdersByDetalle(data)
         if (data.length > 0) {
-          setCurrentOrder(data[0])
-          setOrderIdInput(String(data[0].ordenLaboratorioId))
+          syncCurrentOrder(data[0])
         }
       } catch {
         // No bloquear la pantalla si el detalle no tiene órdenes.
@@ -129,7 +151,7 @@ const LaboratoryWorkbench: React.FC = () => {
     setBusy(true)
     try {
       const { data } = await laboratoryAPI.getOrder(Number(orderIdInput))
-      setCurrentOrder(data)
+      syncCurrentOrder(data)
       setMessage(`Orden ${data.ordenLaboratorioId} cargada.`)
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'No se pudo consultar la orden.')
@@ -148,7 +170,7 @@ const LaboratoryWorkbench: React.FC = () => {
     setBusy(true)
     try {
       const { data } = await laboratoryAPI.receiveSample(Number(orderIdInput))
-      setCurrentOrder(data)
+      syncCurrentOrder(data)
       setMessage(`Muestra recibida. Estado actual: ${data.estado}.`)
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'No se pudo recibir la muestra.')
@@ -167,10 +189,14 @@ const LaboratoryWorkbench: React.FC = () => {
       setError('Ingresa un motivo de rechazo.')
       return
     }
+    if (rejectReason.trim().length > MAX_TEXT_LENGTH) {
+      setError('El motivo de rechazo no puede exceder 120 caracteres.')
+      return
+    }
     setBusy(true)
     try {
       const { data } = await laboratoryAPI.rejectSample(Number(orderIdInput), rejectReason.trim())
-      setCurrentOrder(data)
+      syncCurrentOrder(data)
       setMessage(`Muestra rechazada. Estado actual: ${data.estado}.`)
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'No se pudo rechazar la muestra.')
@@ -182,6 +208,22 @@ const LaboratoryWorkbench: React.FC = () => {
   const handleAddResult = async (e: React.FormEvent) => {
     e.preventDefault()
     resetFeedback()
+    if (!resultPayload.ordenLaboratorioId.trim()) {
+      setError('Ingresa ordenLaboratorioId para registrar el resultado.')
+      return
+    }
+    if (!resultPayload.nombreExamen.trim()) {
+      setError('Ingresa el nombre del examen del resultado.')
+      return
+    }
+    if (!resultPayload.conclusion.trim()) {
+      setError('Ingresa la conclusión del resultado.')
+      return
+    }
+    if (currentOrder && currentOrder.estado !== 'EN_PROCESO') {
+      setError('Solo puedes registrar resultados para órdenes en estado EN_PROCESO.')
+      return
+    }
     setBusy(true)
     try {
       const { data } = await laboratoryAPI.addResult({
@@ -195,8 +237,7 @@ const LaboratoryWorkbench: React.FC = () => {
         resumen: resultPayload.resumen.trim() || undefined,
         conclusion: resultPayload.conclusion.trim(),
       })
-      setCurrentOrder(data)
-      setOrderIdInput(String(data.ordenLaboratorioId))
+      syncCurrentOrder(data)
       setMessage(`Resultado registrado. Estado actual: ${data.estado}.`)
     } catch (err: any) {
       setError(err.response?.data?.errorMessage || 'No se pudo registrar el resultado.')
@@ -261,14 +302,16 @@ const LaboratoryWorkbench: React.FC = () => {
             />
             <input
               value={createPayload.nombreExamen}
-              onChange={(e) => setCreatePayload((prev) => ({ ...prev, nombreExamen: e.target.value }))}
+              onChange={(e) => setCreatePayload((prev) => ({ ...prev, nombreExamen: e.target.value.slice(0, MAX_TEXT_LENGTH) }))}
+              maxLength={MAX_TEXT_LENGTH}
               placeholder="Nombre del examen"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
               required
             />
             <input
               value={createPayload.tipoMuestra}
-              onChange={(e) => setCreatePayload((prev) => ({ ...prev, tipoMuestra: e.target.value }))}
+              onChange={(e) => setCreatePayload((prev) => ({ ...prev, tipoMuestra: e.target.value.slice(0, MAX_TEXT_LENGTH) }))}
+              maxLength={MAX_TEXT_LENGTH}
               placeholder="Tipo de muestra (opcional)"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
             />
@@ -307,7 +350,8 @@ const LaboratoryWorkbench: React.FC = () => {
               </button>
               <input
                 value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
+                onChange={(e) => setRejectReason(e.target.value.slice(0, MAX_TEXT_LENGTH))}
+                maxLength={MAX_TEXT_LENGTH}
                 placeholder="Motivo rechazo"
                 className="px-3 py-2 border border-gray-300 rounded-lg text-sm min-w-[220px]"
               />
@@ -324,8 +368,7 @@ const LaboratoryWorkbench: React.FC = () => {
                       key={order.ordenLaboratorioId}
                       type="button"
                       onClick={() => {
-                        setOrderIdInput(String(order.ordenLaboratorioId))
-                        setCurrentOrder(order)
+                        syncCurrentOrder(order)
                       }}
                       className="px-2.5 py-1 rounded-lg border border-blue-200 bg-white text-xs text-blue-800 hover:bg-blue-100"
                     >
@@ -341,15 +384,16 @@ const LaboratoryWorkbench: React.FC = () => {
             <h3 className="font-semibold text-slate-900">3) Registrar resultado</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <input value={resultPayload.ordenLaboratorioId} onChange={(e) => setResultPayload((p) => ({ ...p, ordenLaboratorioId: e.target.value }))} placeholder="ordenLaboratorioId" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" required />
-              <input value={resultPayload.nombreExamen} onChange={(e) => setResultPayload((p) => ({ ...p, nombreExamen: e.target.value }))} placeholder="Nombre examen" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" required />
-              <input value={resultPayload.conclusion} onChange={(e) => setResultPayload((p) => ({ ...p, conclusion: e.target.value }))} placeholder="Conclusión" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" required />
+              <input value={resultPayload.nombreExamen} onChange={(e) => setResultPayload((p) => ({ ...p, nombreExamen: e.target.value.slice(0, MAX_TEXT_LENGTH) }))} maxLength={MAX_TEXT_LENGTH} placeholder="Nombre examen" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" required />
+              <input value={resultPayload.conclusion} onChange={(e) => setResultPayload((p) => ({ ...p, conclusion: e.target.value.slice(0, MAX_TEXT_LENGTH) }))} maxLength={MAX_TEXT_LENGTH} placeholder="Conclusión" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" required />
               <input value={resultPayload.valorResultado} onChange={(e) => setResultPayload((p) => ({ ...p, valorResultado: e.target.value }))} placeholder="Valor resultado (opcional)" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
               <input value={resultPayload.referenciaMinima} onChange={(e) => setResultPayload((p) => ({ ...p, referenciaMinima: e.target.value }))} placeholder="Referencia mínima" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
               <input value={resultPayload.referenciaMaxima} onChange={(e) => setResultPayload((p) => ({ ...p, referenciaMaxima: e.target.value }))} placeholder="Referencia máxima" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-              <input value={resultPayload.unidadResultado} onChange={(e) => setResultPayload((p) => ({ ...p, unidadResultado: e.target.value }))} placeholder="Unidad" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-              <input value={resultPayload.resumen} onChange={(e) => setResultPayload((p) => ({ ...p, resumen: e.target.value }))} placeholder="Resumen" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
-              <input value={resultPayload.observaciones} onChange={(e) => setResultPayload((p) => ({ ...p, observaciones: e.target.value }))} placeholder="Observaciones" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              <input value={resultPayload.unidadResultado} onChange={(e) => setResultPayload((p) => ({ ...p, unidadResultado: e.target.value.slice(0, MAX_TEXT_LENGTH) }))} maxLength={MAX_TEXT_LENGTH} placeholder="Unidad" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              <input value={resultPayload.resumen} onChange={(e) => setResultPayload((p) => ({ ...p, resumen: e.target.value.slice(0, MAX_TEXT_LENGTH) }))} maxLength={MAX_TEXT_LENGTH} placeholder="Resumen" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
+              <input value={resultPayload.observaciones} onChange={(e) => setResultPayload((p) => ({ ...p, observaciones: e.target.value.slice(0, MAX_TEXT_LENGTH) }))} maxLength={MAX_TEXT_LENGTH} placeholder="Observaciones" className="px-3 py-2 border border-gray-300 rounded-lg text-sm" />
             </div>
+            <p className="text-xs text-slate-500">Solo podrás guardar resultado cuando la orden esté en estado EN_PROCESO. Si la muestra fue rechazada, debes generar una nueva toma.</p>
             <button type="submit" disabled={busy} className="px-4 py-2 rounded-lg bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-60">
               Guardar resultado
             </button>
@@ -361,9 +405,15 @@ const LaboratoryWorkbench: React.FC = () => {
             <h3 className="font-semibold text-slate-900">Orden actual</h3>
             <p className="text-sm text-slate-700 mt-2">ID: {currentOrder.ordenLaboratorioId} · Estado: <span className="font-semibold">{currentOrder.estado}</span></p>
             <p className="text-sm text-slate-700">Examen: {currentOrder.nombreExamen}</p>
+            <p className="text-sm text-slate-700">Pago validado: {currentOrder.pagoValidado ? 'Sí' : 'No'}</p>
+            <p className="text-sm text-slate-700">Observación técnica: {currentOrder.observacionesTecnico || 'N/D'}</p>
             <p className="text-sm text-slate-700">Etiqueta: {currentOrder.etiquetaId || 'N/D'}</p>
             {currentOrder.resultado && (
-              <p className="text-sm text-slate-700">Conclusión: {currentOrder.resultado.conclusion} {currentOrder.resultado.critico ? '(CRÍTICO)' : ''}</p>
+              <div className="mt-2 rounded-lg border border-violet-100 bg-violet-50 p-3 text-sm text-slate-700">
+                <p>Conclusión: {currentOrder.resultado.conclusion} {currentOrder.resultado.critico ? '(CRÍTICO)' : ''}</p>
+                <p>Resumen: {currentOrder.resultado.resumen || 'N/D'}</p>
+                <p>Observaciones: {currentOrder.resultado.observaciones || 'N/D'}</p>
+              </div>
             )}
           </section>
         )}

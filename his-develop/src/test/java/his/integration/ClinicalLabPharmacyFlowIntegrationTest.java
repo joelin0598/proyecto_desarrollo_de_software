@@ -5,6 +5,7 @@ import his.application.dto.CloseMedicalAppointmentAttentionRequest;
 import his.application.dto.CreateLaboratoryOrderRequest;
 import his.application.dto.CreatePrescriptionRequest;
 import his.application.dto.DispenseMedicineRequest;
+import his.application.dto.PharmacyPaymentRequest;
 import his.application.dto.RegisterRequest;
 import his.application.dto.RegisterRequestAdmin;
 import his.application.dto.ScheduleAppointmentRequest;
@@ -195,6 +196,18 @@ class ClinicalLabPharmacyFlowIntegrationTest {
 
         var recetaCargada = pharmacyService.getPrescription(detalleId);
         Long recetaDetalleId = recetaCargada.getItems().get(0).getRecetaMedicaDetalleId();
+        Long recetaMedicaId = recetaCargada.getRecetaMedicaId();
+
+        // CU08: Validar pago en farmacia antes de despachar (regla de negocio RN09)
+        PharmacyPaymentRequest paymentRequest = new PharmacyPaymentRequest();
+        paymentRequest.setMetodoPago(PaymentOption.TARJETA);
+        paymentRequest.setBancoTarjeta("Banco Demo");
+        paymentRequest.setNumeroTarjeta("4111111111111111");
+        paymentRequest.setFechaVencimientoTarjeta("12/30");
+        paymentRequest.setNombreTitularTarjeta("PACIENTE INTEGRACION");
+        paymentRequest.setCvc("123");
+        var recetaPagada = pharmacyService.validatePrescriptionPayment(recetaMedicaId, paymentRequest, "farmacia.cu060708@example.com");
+        assertTrue(recetaPagada.isPagoFarmaciaValidado(), "CU08: El pago de farmacia debe quedar validado antes del despacho");
 
         DispenseMedicineRequest dispenseRequest = new DispenseMedicineRequest();
         dispenseRequest.setRecetaMedicaDetalleId(recetaDetalleId);

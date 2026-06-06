@@ -50,9 +50,9 @@ public class SecurityConfig {
                                 "/swagger-ui-custom.html"
                         ).permitAll()
                         .requestMatchers("/api/appointments/attention/**").hasAuthority("DOCTOR")
-                        .requestMatchers("/api/patients/register").hasAnyAuthority("ADMIN", "ENFERMERA", "ADMINISTRATIVO", "RECEPCION")
+                        .requestMatchers("/api/patients/register").hasAnyAuthority("ADMIN", "DOCTOR", "ENFERMERA", "LABORATORISTA", "FARMACEUTICO", "ADMINISTRATIVO", "RECEPCION")
                         .requestMatchers("/api/patients/triage").hasAnyAuthority("ADMIN", "DOCTOR", "ENFERMERA", "LABORATORISTA", "FARMACEUTICO", "ADMINISTRATIVO", "RECEPCION")
-                        .requestMatchers("/api/patients/**").hasAnyAuthority("ADMIN", "ENFERMERA", "ADMINISTRATIVO", "RECEPCION")
+                        .requestMatchers("/api/patients/**").hasAnyAuthority("ADMIN", "DOCTOR", "ENFERMERA", "LABORATORISTA", "FARMACEUTICO", "ADMINISTRATIVO", "RECEPCION")
                         .requestMatchers("/api/laboratory/**").hasAnyAuthority("LABORATORISTA", "DOCTOR", "ADMIN")
                         .requestMatchers("/api/pharmacy/prescriptions/**").hasAnyAuthority("FARMACEUTICO", "DOCTOR", "ADMIN")
                         .requestMatchers("/api/pharmacy/dispense").hasAnyAuthority("FARMACEUTICO", "ADMIN")

@@ -19,6 +19,8 @@ public class MedicalPrescriptionDetails {
     private String viaAdministracion;
     private Integer frecuenciaHoras;
     private Integer duracionDias;
+    private Integer stockActual;
+    private Double precioUnitario;
     private boolean despachado;
     private boolean pagoValidado;
 }

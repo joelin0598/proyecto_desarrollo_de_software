@@ -5,6 +5,7 @@ import his.domain.models.AdministrativeAppointmentStatus;
 import his.domain.models.HospitalStaff;
 import his.domain.models.LaboratoryOrder;
 import his.domain.models.LaboratoryOrderStatus;
+import his.domain.models.LaboratoryResult;
 import his.domain.models.MedicalAppointment;
 import his.domain.models.MedicalAppointmentDetails;
 import his.domain.models.Role;
@@ -79,7 +80,80 @@ class LaboratoryServiceTest {
         when(orderRepository.findById(5L)).thenReturn(Optional.of(LaboratoryOrder.builder()
                 .ordenLaboratorioId(5L)
                 .estado(LaboratoryOrderStatus.EN_PROCESO)
+                .citaMedicaDetalleId(11L)
+                .nombreExamen("Glucosa")
                 .build()));
+        when(detailsRepository.findById(11L)).thenReturn(Optional.of(MedicalAppointmentDetails.builder().citaMedicaId(20L).build()));
+        when(appointmentRepository.findById(20L)).thenReturn(Optional.of(MedicalAppointment.builder()
+                .estadoAdministrativo(AdministrativeAppointmentStatus.PAGO_VALIDADO)
+                .build()));
+        when(resultRepository.findByOrdenId(5L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.addResult(request, "lab@hospital.com"));
+    }
+
+    @Test
+    void rejectSample_throwsWhenOrderAlreadyRejected() {
+        when(userRepository.findByEmail("lab@hospital.com")).thenReturn(Optional.of(User.builder().userId(1L).build()));
+        when(staffRepository.findByUsuarioId(1L)).thenReturn(Optional.of(HospitalStaff.builder().rol(Role.LABORATORISTA).personalId(99L).build()));
+        when(orderRepository.findById(1L)).thenReturn(Optional.of(LaboratoryOrder.builder()
+                .ordenLaboratorioId(1L)
+                .estado(LaboratoryOrderStatus.MUESTRA_RECHAZADA)
+                .build()));
+
+        assertThrows(IllegalStateException.class, () -> service.rejectSample(1L, "Muestra hemolizada", "lab@hospital.com"));
+    }
+
+    @Test
+    void addResult_throwsWhenResultAlreadyExists() {
+        AddLaboratoryResultRequest request = new AddLaboratoryResultRequest();
+        request.setOrdenLaboratorioId(5L);
+        request.setNombreExamen("Glucosa");
+        request.setConclusion("Resultado final");
+        request.setValorResultado(new BigDecimal("95"));
+        request.setReferenciaMinima(new BigDecimal("70"));
+        request.setReferenciaMaxima(new BigDecimal("110"));
+
+        when(userRepository.findByEmail("lab@hospital.com")).thenReturn(Optional.of(User.builder().userId(1L).build()));
+        when(staffRepository.findByUsuarioId(1L)).thenReturn(Optional.of(HospitalStaff.builder().rol(Role.LABORATORISTA).personalId(99L).build()));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(LaboratoryOrder.builder()
+                .ordenLaboratorioId(5L)
+                .estado(LaboratoryOrderStatus.EN_PROCESO)
+                .citaMedicaDetalleId(11L)
+                .nombreExamen("Glucosa")
+                .build()));
+        when(detailsRepository.findById(11L)).thenReturn(Optional.of(MedicalAppointmentDetails.builder().citaMedicaId(20L).build()));
+        when(appointmentRepository.findById(20L)).thenReturn(Optional.of(MedicalAppointment.builder()
+                .estadoAdministrativo(AdministrativeAppointmentStatus.PAGO_VALIDADO)
+                .build()));
+        when(resultRepository.findByOrdenId(5L)).thenReturn(Optional.of(LaboratoryResult.builder().resultadoLaboratorioId(10L).build()));
+
+        assertThrows(IllegalStateException.class, () -> service.addResult(request, "lab@hospital.com"));
+    }
+
+    @Test
+    void addResult_throwsWhenExamNameDoesNotMatchOrder() {
+        AddLaboratoryResultRequest request = new AddLaboratoryResultRequest();
+        request.setOrdenLaboratorioId(5L);
+        request.setNombreExamen("Hemoglobina");
+        request.setConclusion("Resultado final");
+        request.setValorResultado(new BigDecimal("95"));
+        request.setReferenciaMinima(new BigDecimal("70"));
+        request.setReferenciaMaxima(new BigDecimal("110"));
+
+        when(userRepository.findByEmail("lab@hospital.com")).thenReturn(Optional.of(User.builder().userId(1L).build()));
+        when(staffRepository.findByUsuarioId(1L)).thenReturn(Optional.of(HospitalStaff.builder().rol(Role.LABORATORISTA).personalId(99L).build()));
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(LaboratoryOrder.builder()
+                .ordenLaboratorioId(5L)
+                .estado(LaboratoryOrderStatus.EN_PROCESO)
+                .citaMedicaDetalleId(11L)
+                .nombreExamen("Glucosa")
+                .build()));
+        when(detailsRepository.findById(11L)).thenReturn(Optional.of(MedicalAppointmentDetails.builder().citaMedicaId(20L).build()));
+        when(appointmentRepository.findById(20L)).thenReturn(Optional.of(MedicalAppointment.builder()
+                .estadoAdministrativo(AdministrativeAppointmentStatus.PAGO_VALIDADO)
+                .build()));
+        when(resultRepository.findByOrdenId(5L)).thenReturn(Optional.empty());
+
         assertThrows(IllegalArgumentException.class, () -> service.addResult(request, "lab@hospital.com"));
     }
 }

@@ -4,6 +4,8 @@ import his.application.dto.CreatePrescriptionRequest;
 import his.application.dto.DispenseMedicineRequest;
 import his.application.dto.MedicationReminderResponse;
 import his.application.dto.MedicineResponse;
+import his.application.dto.PharmacyPaymentRequest;
+import his.application.dto.PharmacyPrescriptionLookupResponse;
 import his.application.dto.PrescriptionResponse;
 import his.application.usecases.PharmacyUseCase;
 import his.domain.models.HospitalStaff;
@@ -13,6 +15,8 @@ import his.domain.models.MedicationReminder;
 import his.domain.models.Medicine;
 import his.domain.models.MedicalAppointmentDetails;
 import his.domain.models.AdministrativeAppointmentStatus;
+import his.domain.models.Patient;
+import his.domain.models.PaymentOption;
 import his.domain.models.Role;
 import his.domain.ports.HospitalStaffRepository;
 import his.domain.ports.MedicalAppointmentDetailsRepository;
@@ -31,6 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * CU08 — Servicios de farmacia: creación de recetas, despacho y recordatorios.
@@ -109,6 +114,66 @@ public class PharmacyService implements PharmacyUseCase {
         return toResponse(prescription, items);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public PharmacyPrescriptionLookupResponse findPrescriptionsByDpi(String dpi) {
+        if (dpi == null || !dpi.matches("^[0-9]{13}$")) {
+            throw new IllegalArgumentException("El DPI debe tener exactamente 13 digitos.");
+        }
+
+        Patient patient = patientRepository.findByDpi(dpi)
+                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado para el DPI indicado."));
+
+        List<PrescriptionResponse> prescriptions = prescriptionRepository.findByPacienteDpi(dpi).stream()
+                .filter(this::isPrescriptionActive)
+                .map(prescription -> toResponse(
+                        prescription,
+                        prescriptionDetailsRepository.findByRecetaId(prescription.getRecetaMedicaId())))
+                .toList();
+
+        return PharmacyPrescriptionLookupResponse.builder()
+                .pacienteId(patient.getPacienteId())
+                .pacienteNombre(patient.getNombreCompleto())
+                .pacienteDpi(patient.getDpi())
+                .recetas(prescriptions)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public PrescriptionResponse validatePrescriptionPayment(Long recetaMedicaId, PharmacyPaymentRequest req, String emailFarmaceutico) {
+        resolveRole(emailFarmaceutico, Role.FARMACEUTICO);
+        validatePaymentRequest(req);
+
+        MedicalPrescription receta = prescriptionRepository.findById(recetaMedicaId)
+                .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada: " + recetaMedicaId));
+
+        validatePrescriptionIsActive(receta);
+        validateAdministrativeSolvency(receta.getCitaMedicaDetalleId());
+        validatePrescriptionBelongsToDpi(receta, req.getDpiPaciente());
+
+        List<MedicalPrescriptionDetails> pending = prescriptionDetailsRepository.findByRecetaId(receta.getRecetaMedicaId())
+                .stream()
+                .filter(item -> !item.isDespachado())
+                .toList();
+
+        if (pending.isEmpty()) {
+            throw new IllegalStateException("La receta ya fue despachada.");
+        }
+
+        validateStockForItems(pending);
+
+        pending.forEach(item -> {
+            item.setPagoValidado(true);
+            prescriptionDetailsRepository.save(item);
+        });
+
+        log.info("CU08: Pago farmacia validado recetaId={} metodo={} itemsPendientes={}",
+                recetaMedicaId, req.getMetodoPago(), pending.size());
+
+        return toResponse(receta, prescriptionDetailsRepository.findByRecetaId(receta.getRecetaMedicaId()));
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Despacho (RN09 — solvencia + stock)
     // ─────────────────────────────────────────────────────────────────────────
@@ -131,6 +196,9 @@ public class PharmacyService implements PharmacyUseCase {
         if (detalle.isDespachado()) {
             throw new IllegalStateException("Este medicamento ya fue despachado.");
         }
+        if (!detalle.isPagoValidado()) {
+            throw new IllegalStateException("Debe validar el pago en farmacia antes de despachar el medicamento.");
+        }
 
         // RN09 — FA02: validar stock
         Medicine med = medicineRepository.findById(detalle.getMedicamentoId())
@@ -148,33 +216,10 @@ public class PharmacyService implements PharmacyUseCase {
 
         // Marcar despachado
         detalle.setDespachado(true);
-        detalle.setPagoValidado(true);
         prescriptionDetailsRepository.save(detalle);
 
         // Crear recordatorio (CU08 FA postcondición)
-        if (detalle.getFrecuenciaHoras() != null && detalle.getDuracionDias() != null) {
-            // Obtener paciente desde la cita a través de la receta
-            MedicalAppointmentDetails apptDetail = appointmentDetailsRepository
-                    .findById(receta.getCitaMedicaDetalleId())
-                    .orElseThrow(() -> new IllegalArgumentException("Detalle de cita no encontrado"));
-
-            // Obtener paciente_id de la cita médica — necesitamos acceso mínimo
-            // Lo guardamos contra la receta; el pacienteId viene de la cita_medica
-            // Para evitar un join extra usamos un helper en el detalle de la cita
-            Long pacienteId = resolvePacienteIdFromDetalle(receta.getCitaMedicaDetalleId());
-
-            reminderRepository.save(MedicationReminder.builder()
-                    .recetaMedicaDetalleId(detalle.getRecetaMedicaDetalleId())
-                    .pacienteId(pacienteId)
-                    .medicamentoNombre(med.getNombre())
-                    .dosis(detalle.getDosis())
-                    .frecuenciaHoras(detalle.getFrecuenciaHoras())
-                    .duracionDias(detalle.getDuracionDias())
-                    .viaAdministracion(detalle.getViaAdministracion())
-                    .proximoRecordatorio(LocalDateTime.now().plusHours(detalle.getFrecuenciaHoras()))
-                    .activo(true)
-                    .build());
-        }
+        createReminderIfApplies(receta, detalle, med);
 
         log.info("CU08: Despachado detalleId={} medicamento={} cantidad={}",
                 detalle.getRecetaMedicaDetalleId(), med.getNombre(), detalle.getCantidad());
@@ -182,6 +227,47 @@ public class PharmacyService implements PharmacyUseCase {
         List<MedicalPrescriptionDetails> allItems =
                 prescriptionDetailsRepository.findByRecetaId(receta.getRecetaMedicaId());
         return toResponse(receta, allItems);
+    }
+
+    @Override
+    @Transactional
+    public PrescriptionResponse dispensePrescription(Long recetaMedicaId, String emailFarmaceutico) {
+        resolveRole(emailFarmaceutico, Role.FARMACEUTICO);
+
+        MedicalPrescription receta = prescriptionRepository.findById(recetaMedicaId)
+                .orElseThrow(() -> new IllegalArgumentException("Receta no encontrada: " + recetaMedicaId));
+
+        validatePrescriptionIsActive(receta);
+        validateAdministrativeSolvency(receta.getCitaMedicaDetalleId());
+
+        List<MedicalPrescriptionDetails> pending = prescriptionDetailsRepository.findByRecetaId(receta.getRecetaMedicaId())
+                .stream()
+                .filter(item -> !item.isDespachado())
+                .toList();
+
+        if (pending.isEmpty()) {
+            throw new IllegalStateException("La receta ya fue despachada.");
+        }
+        if (pending.stream().anyMatch(item -> !item.isPagoValidado())) {
+            throw new IllegalStateException("Debe validar el pago en farmacia antes de despachar la receta.");
+        }
+
+        validateStockForItems(pending);
+
+        for (MedicalPrescriptionDetails detalle : pending) {
+            Medicine med = medicineRepository.findById(detalle.getMedicamentoId())
+                    .orElseThrow(() -> new IllegalArgumentException("Medicamento no encontrado: " + detalle.getMedicamentoId()));
+            med.setStockActual(med.getStockActual() - detalle.getCantidad());
+            medicineRepository.save(med);
+
+            detalle.setDespachado(true);
+            prescriptionDetailsRepository.save(detalle);
+            createReminderIfApplies(receta, detalle, med);
+        }
+
+        log.info("CU08: Receta despachada recetaId={} items={}", recetaMedicaId, pending.size());
+
+        return toResponse(receta, prescriptionDetailsRepository.findByRecetaId(receta.getRecetaMedicaId()));
     }
 
     @Override
@@ -269,6 +355,83 @@ public class PharmacyService implements PharmacyUseCase {
         }
     }
 
+    private boolean isPrescriptionActive(MedicalPrescription prescription) {
+        LocalDate emissionDate = prescription.getFechaEmision();
+        return emissionDate != null && !emissionDate.isBefore(LocalDate.now().minusDays(PRESCRIPTION_VALID_DAYS));
+    }
+
+    private void validatePaymentRequest(PharmacyPaymentRequest req) {
+        if (req == null || req.getMetodoPago() == null) {
+            throw new IllegalArgumentException("Selecciona el metodo de pago de farmacia.");
+        }
+        if (req.getMetodoPago() == PaymentOption.TARJETA) {
+            if (isBlank(req.getBancoTarjeta()) || isBlank(req.getNumeroTarjeta())
+                    || isBlank(req.getFechaVencimientoTarjeta()) || isBlank(req.getNombreTitularTarjeta())
+                    || isBlank(req.getCvc())) {
+                throw new IllegalArgumentException("Completa los datos de tarjeta para validar el pago.");
+            }
+            if (!req.getNumeroTarjeta().matches("^[0-9]{13,19}$")) {
+                throw new IllegalArgumentException("El numero de tarjeta debe tener entre 13 y 19 digitos.");
+            }
+            if (!req.getFechaVencimientoTarjeta().matches("^(0[1-9]|1[0-2])/[0-9]{2}$")) {
+                throw new IllegalArgumentException("La fecha de vencimiento debe usar formato MM/YY.");
+            }
+            if (!req.getCvc().matches("^[0-9]{3,4}$")) {
+                throw new IllegalArgumentException("El CVC debe tener 3 o 4 digitos.");
+            }
+        }
+        if (req.getMetodoPago() == PaymentOption.SEGURO
+                && (req.getAseguradoraId() == null || isBlank(req.getNumeroPoliza()))) {
+            throw new IllegalArgumentException("Selecciona aseguradora e ingresa numero de poliza.");
+        }
+    }
+
+    private void validatePrescriptionBelongsToDpi(MedicalPrescription receta, String dpi) {
+        if (isBlank(dpi)) {
+            return;
+        }
+        Long pacienteId = resolvePacienteIdFromDetalle(receta.getCitaMedicaDetalleId());
+        Patient patient = patientRepository.findById(pacienteId)
+                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado para la receta."));
+        if (!Objects.equals(patient.getDpi(), dpi)) {
+            throw new IllegalArgumentException("La receta seleccionada no pertenece al DPI buscado.");
+        }
+    }
+
+    private void validateStockForItems(List<MedicalPrescriptionDetails> items) {
+        for (MedicalPrescriptionDetails detalle : items) {
+            Medicine med = medicineRepository.findById(detalle.getMedicamentoId())
+                    .orElseThrow(() -> new IllegalArgumentException("Medicamento no encontrado: " + detalle.getMedicamentoId()));
+            if (med.getStockActual() < detalle.getCantidad()) {
+                throw new IllegalStateException(
+                        "Stock insuficiente para " + med.getNombre() +
+                                ". Disponible: " + med.getStockActual() + ", solicitado: " + detalle.getCantidad());
+            }
+        }
+    }
+
+    private void createReminderIfApplies(MedicalPrescription receta, MedicalPrescriptionDetails detalle, Medicine med) {
+        if (detalle.getFrecuenciaHoras() == null || detalle.getDuracionDias() == null) {
+            return;
+        }
+        Long pacienteId = resolvePacienteIdFromDetalle(receta.getCitaMedicaDetalleId());
+        reminderRepository.save(MedicationReminder.builder()
+                .recetaMedicaDetalleId(detalle.getRecetaMedicaDetalleId())
+                .pacienteId(pacienteId)
+                .medicamentoNombre(med.getNombre())
+                .dosis(detalle.getDosis())
+                .frecuenciaHoras(detalle.getFrecuenciaHoras())
+                .duracionDias(detalle.getDuracionDias())
+                .viaAdministracion(detalle.getViaAdministracion())
+                .proximoRecordatorio(LocalDateTime.now().plusHours(detalle.getFrecuenciaHoras()))
+                .activo(true)
+                .build());
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private void validateAdministrativeSolvency(Long citaMedicaDetalleId) {
         MedicalAppointmentDetails detail = appointmentDetailsRepository.findById(citaMedicaDetalleId)
                 .orElseThrow(() -> new IllegalArgumentException("Detalle de cita no encontrado: " + citaMedicaDetalleId));
@@ -280,6 +443,29 @@ public class PharmacyService implements PharmacyUseCase {
     }
 
     private PrescriptionResponse toResponse(MedicalPrescription p, List<MedicalPrescriptionDetails> items) {
+        Patient patient = null;
+        String medicoNombre = null;
+        String estadoAdministrativo = null;
+        try {
+            MedicalAppointmentDetails detail = appointmentDetailsRepository.findById(p.getCitaMedicaDetalleId()).orElse(null);
+            if (detail != null) {
+                var appointment = appointmentRepository.findById(detail.getCitaMedicaId()).orElse(null);
+                if (appointment != null) {
+                    patient = patientRepository.findById(appointment.getPacienteId()).orElse(null);
+                    estadoAdministrativo = appointment.getEstadoAdministrativo() != null
+                            ? appointment.getEstadoAdministrativo().name()
+                            : null;
+                    if (appointment.getPersonalId() != null) {
+                        medicoNombre = staffRepository.findById(appointment.getPersonalId())
+                                .map(HospitalStaff::getNombreCompleto)
+                                .orElse(null);
+                    }
+                }
+            }
+        } catch (RuntimeException ex) {
+            log.debug("No se pudo enriquecer recetaId={} con datos de paciente/medico", p.getRecetaMedicaId(), ex);
+        }
+
         var itemResponses = items.stream()
                 .map(i -> PrescriptionResponse.PrescriptionDetailResponse.builder()
                         .recetaMedicaDetalleId(i.getRecetaMedicaDetalleId())
@@ -290,17 +476,37 @@ public class PharmacyService implements PharmacyUseCase {
                         .viaAdministracion(i.getViaAdministracion())
                         .frecuenciaHoras(i.getFrecuenciaHoras())
                         .duracionDias(i.getDuracionDias())
+                        .stockActual(i.getStockActual())
+                        .precioUnitario(i.getPrecioUnitario())
+                        .subtotal((i.getPrecioUnitario() != null ? i.getPrecioUnitario() : 0.0) * i.getCantidad())
+                        .disponible(i.isDespachado() || (i.getStockActual() != null && i.getStockActual() >= i.getCantidad()))
                         .despachado(i.isDespachado())
                         .pagoValidado(i.isPagoValidado())
                         .build())
                 .toList();
 
+        double total = itemResponses.stream()
+                .mapToDouble(item -> item.getSubtotal() != null ? item.getSubtotal() : 0.0)
+                .sum();
+        boolean pagoFarmaciaValidado = !items.isEmpty() && items.stream()
+                .filter(item -> !item.isDespachado())
+                .allMatch(MedicalPrescriptionDetails::isPagoValidado);
+        boolean despachada = !items.isEmpty() && items.stream().allMatch(MedicalPrescriptionDetails::isDespachado);
+
         return PrescriptionResponse.builder()
                 .recetaMedicaId(p.getRecetaMedicaId())
                 .citaMedicaDetalleId(p.getCitaMedicaDetalleId())
+                .pacienteId(patient != null ? patient.getPacienteId() : null)
+                .pacienteNombre(patient != null ? patient.getNombreCompleto() : null)
+                .pacienteDpi(patient != null ? patient.getDpi() : null)
+                .medicoNombre(medicoNombre)
+                .estadoAdministrativo(estadoAdministrativo)
                 .instruccionesGenerales(p.getInstruccionesGenerales())
                 .fechaEmision(p.getFechaEmision())
                 .createdAt(p.getCreatedAt())
+                .pagoFarmaciaValidado(pagoFarmaciaValidado)
+                .despachada(despachada)
+                .totalMedicamentos(total)
                 .items(itemResponses)
                 .build();
     }

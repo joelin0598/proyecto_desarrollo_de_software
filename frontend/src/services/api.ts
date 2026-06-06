@@ -351,6 +351,10 @@ export interface PrescriptionDetailResponse {
   viaAdministracion?: string
   frecuenciaHoras?: number
   duracionDias?: number
+  stockActual?: number
+  precioUnitario?: number
+  subtotal?: number
+  disponible?: boolean
   despachado: boolean
   pagoValidado: boolean
 }
@@ -358,14 +362,41 @@ export interface PrescriptionDetailResponse {
 export interface PrescriptionResponse {
   recetaMedicaId: number
   citaMedicaDetalleId: number
+  pacienteId?: number | null
+  pacienteNombre?: string | null
+  pacienteDpi?: string | null
+  medicoNombre?: string | null
+  estadoAdministrativo?: string | null
   instruccionesGenerales?: string
   fechaEmision: string
   createdAt?: string
+  pagoFarmaciaValidado?: boolean
+  despachada?: boolean
+  totalMedicamentos?: number
   items: PrescriptionDetailResponse[]
 }
 
 export interface DispenseMedicineRequest {
   recetaMedicaDetalleId: number
+}
+
+export interface PharmacyPaymentRequest {
+  dpiPaciente?: string
+  metodoPago: PaymentOption
+  bancoTarjeta?: string
+  numeroTarjeta?: string
+  fechaVencimientoTarjeta?: string
+  nombreTitularTarjeta?: string
+  cvc?: string
+  aseguradoraId?: number
+  numeroPoliza?: string
+}
+
+export interface PharmacyPrescriptionLookupResponse {
+  pacienteId: number
+  pacienteNombre: string
+  pacienteDpi: string
+  recetas: PrescriptionResponse[]
 }
 
 export interface MedicineResponse {
@@ -455,6 +486,15 @@ export const pharmacyAPI = {
 
   getPrescriptionByDetalle: (citaMedicaDetalleId: number) =>
     api.get<PrescriptionResponse>(`/pharmacy/prescriptions/by-detalle/${citaMedicaDetalleId}`),
+
+  getPrescriptionsByDpi: (dpi: string) =>
+    api.get<PharmacyPrescriptionLookupResponse>('/pharmacy/prescriptions/by-dpi', { params: { dpi } }),
+
+  validatePrescriptionPayment: (recetaMedicaId: number, data: PharmacyPaymentRequest) =>
+    api.post<PrescriptionResponse>(`/pharmacy/prescriptions/${recetaMedicaId}/payment`, data),
+
+  dispensePrescription: (recetaMedicaId: number) =>
+    api.post<PrescriptionResponse>(`/pharmacy/prescriptions/${recetaMedicaId}/dispense`),
 
   dispense: (data: DispenseMedicineRequest) =>
     api.post<PrescriptionResponse>('/pharmacy/dispense', data),

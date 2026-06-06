@@ -50,15 +50,11 @@ public class LaboratoryService implements LaboratoryUseCase {
     public LaboratoryOrderResponse createOrder(CreateLaboratoryOrderRequest req, String emailLaboratorista) {
         HospitalStaff staff = resolveLabOrderCreator(emailLaboratorista);
 
-        MedicalAppointmentDetails detalle = detailsRepository.findById(req.getCitaMedicaDetalleId())
+        detailsRepository.findById(req.getCitaMedicaDetalleId())
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Detalle de cita no encontrado: " + req.getCitaMedicaDetalleId()));
 
-        var cita = appointmentRepository.findById(detalle.getCitaMedicaId())
-                .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada para el detalle indicado."));
-        if (cita.getEstadoAdministrativo() != AdministrativeAppointmentStatus.PAGO_VALIDADO) {
-            throw new IllegalStateException("Examen no solvente. Debe validar pago antes de recibir muestra.");
-        }
+        validateAdministrativeSolvency(req.getCitaMedicaDetalleId());
 
         LaboratoryOrder order = LaboratoryOrder.builder()
                 .citaMedicaDetalleId(req.getCitaMedicaDetalleId())
@@ -83,11 +79,13 @@ public class LaboratoryService implements LaboratoryUseCase {
     @Override
     @Transactional
     public LaboratoryOrderResponse receiveSample(Long ordenLaboratorioId, String emailLaboratorista) {
-        resolveStaff(emailLaboratorista, Role.LABORATORISTA);
+        resolveStaff(emailLaboratorista);
 
         LaboratoryOrder order = findOrder(ordenLaboratorioId);
-        validateEstado(order, LaboratoryOrderStatus.PENDIENTE_MUESTRA,
-                "La orden no está en estado PENDIENTE_MUESTRA");
+        validateAdministrativeSolvency(order.getCitaMedicaDetalleId());
+        if (order.getEstado() != LaboratoryOrderStatus.PENDIENTE_MUESTRA) {
+            throw new IllegalStateException("La orden no está en estado PENDIENTE_MUESTRA — estado actual: " + order.getEstado());
+        }
 
         String etiqueta = "LAB-" + ordenLaboratorioId + "-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
         order.setEstado(LaboratoryOrderStatus.EN_PROCESO);
@@ -105,7 +103,7 @@ public class LaboratoryService implements LaboratoryUseCase {
     @Override
     @Transactional
     public LaboratoryOrderResponse rejectSample(Long ordenLaboratorioId, String motivo, String emailLaboratorista) {
-        resolveStaff(emailLaboratorista, Role.LABORATORISTA);
+        resolveStaff(emailLaboratorista);
 
         if (motivo == null || motivo.isBlank()) {
             throw new IllegalArgumentException("Debes indicar el motivo de rechazo de muestra.");
@@ -114,6 +112,13 @@ public class LaboratoryService implements LaboratoryUseCase {
         LaboratoryOrder order = findOrder(ordenLaboratorioId);
         if (order.getEstado() == LaboratoryOrderStatus.FINALIZADO) {
             throw new IllegalStateException("No se puede rechazar una orden ya finalizada.");
+        }
+        if (order.getEstado() == LaboratoryOrderStatus.MUESTRA_RECHAZADA) {
+            throw new IllegalStateException("La muestra ya fue rechazada previamente.");
+        }
+        if (order.getEstado() != LaboratoryOrderStatus.PENDIENTE_MUESTRA
+                && order.getEstado() != LaboratoryOrderStatus.EN_PROCESO) {
+            throw new IllegalStateException("Solo se puede rechazar una muestra pendiente o en proceso.");
         }
 
         order.setEstado(LaboratoryOrderStatus.MUESTRA_RECHAZADA);
@@ -131,11 +136,19 @@ public class LaboratoryService implements LaboratoryUseCase {
     @Override
     @Transactional
     public LaboratoryOrderResponse addResult(AddLaboratoryResultRequest req, String emailLaboratorista) {
-        resolveStaff(emailLaboratorista, Role.LABORATORISTA);
+        resolveStaff(emailLaboratorista);
 
         LaboratoryOrder order = findOrder(req.getOrdenLaboratorioId());
+        validateAdministrativeSolvency(order.getCitaMedicaDetalleId());
         if (order.getEstado() != LaboratoryOrderStatus.EN_PROCESO) {
             throw new IllegalStateException("La orden debe estar EN_PROCESO para registrar resultados.");
+        }
+        if (resultRepository.findByOrdenId(req.getOrdenLaboratorioId()).isPresent()) {
+            throw new IllegalStateException("La orden ya tiene un resultado registrado.");
+        }
+        if (req.getNombreExamen() == null
+                || !order.getNombreExamen().trim().equalsIgnoreCase(req.getNombreExamen().trim())) {
+            throw new IllegalArgumentException("El nombre del examen no coincide con la orden seleccionada.");
         }
 
         validateResultRanges(req);
@@ -201,21 +214,24 @@ public class LaboratoryService implements LaboratoryUseCase {
                 .orElseThrow(() -> new IllegalArgumentException("Orden de laboratorio no encontrada: " + id));
     }
 
-    private void validateEstado(LaboratoryOrder order, LaboratoryOrderStatus expected, String msg) {
-        if (order.getEstado() != expected) {
-            throw new IllegalStateException(msg + " — estado actual: " + order.getEstado());
+    private void validateAdministrativeSolvency(Long citaMedicaDetalleId) {
+        MedicalAppointmentDetails detalle = detailsRepository.findById(citaMedicaDetalleId)
+                .orElseThrow(() -> new IllegalArgumentException("Detalle de cita no encontrado: " + citaMedicaDetalleId));
+        var cita = appointmentRepository.findById(detalle.getCitaMedicaId())
+                .orElseThrow(() -> new IllegalArgumentException("Cita no encontrada para el detalle indicado."));
+        if (cita.getEstadoAdministrativo() != AdministrativeAppointmentStatus.PAGO_VALIDADO) {
+            throw new IllegalStateException("Examen no solvente. Debe validar pago antes de recibir muestra.");
         }
     }
 
-    private HospitalStaff resolveStaff(String email, Role expectedRole) {
+    private void resolveStaff(String email) {
         var user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + email));
         var staff = staffRepository.findByUsuarioId(user.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("Perfil de personal no encontrado: " + email));
-        if (staff.getRol() != expectedRole && staff.getRol() != Role.ADMIN) {
-            throw new IllegalArgumentException("Rol requerido: " + expectedRole + " — actual: " + staff.getRol());
+        if (staff.getRol() != Role.LABORATORISTA && staff.getRol() != Role.ADMIN) {
+            throw new IllegalArgumentException("Rol requerido: LABORATORISTA — actual: " + staff.getRol());
         }
-        return staff;
     }
 
     private HospitalStaff resolveLabOrderCreator(String email) {

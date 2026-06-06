@@ -8,6 +8,7 @@ import his.infrastructure.persistence.repositories.MedicalPrescriptionJpaReposit
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -40,6 +41,14 @@ public class SqlMedicalPrescriptionRepository implements MedicalPrescriptionRepo
         return jpaRepository
                 .findTopByCitaMedicaDetalleCitaMedicaDetalleIdOrderByCreatedAtDesc(citaMedicaDetalleId)
                 .map(this::toDomain);
+    }
+
+    @Override
+    public List<MedicalPrescription> findByPacienteDpi(String dpi) {
+        return jpaRepository.findByPacienteDpiOrderByCreatedAtDesc(dpi)
+                .stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     private MedicalPrescription toDomain(MedicalPrescriptionJpaEntity e) {
