@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { authAPI } from '@/services/api'
 import StatusChip from '@/components/ui/StatusChip'
+import HospitalLogo from '@/components/ui/HospitalLogo'
 
 const mainPortalActions = [
   {

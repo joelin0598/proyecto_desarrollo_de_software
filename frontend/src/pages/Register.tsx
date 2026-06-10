@@ -162,9 +162,14 @@ const Register: React.FC = () => {
       <div className="h-full grid grid-cols-[220px_1fr]">
         <aside className="bg-blue-100/85 border-r border-blue-200 shadow-sm px-5 py-6 flex flex-col justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
-            <h1 className="text-xl font-bold text-slate-900 mt-1">Registro</h1>
-            <p className="text-xs text-slate-600 mt-1">Alta de pacientes</p>
+            <div className="mb-7 flex items-center gap-3">
+              <img src="/hospital-logo.svg" alt="Hospital" className="h-10 w-10 object-contain" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
+                <h1 className="text-xl font-bold text-slate-900 mt-1">Registro</h1>
+                <p className="text-xs text-slate-600 mt-1">Alta de pacientes</p>
+              </div>
+            </div>
             <nav className="mt-8 space-y-2 text-sm">
               <p className="bg-white text-blue-700 border border-blue-200 font-semibold px-3 py-2 rounded-lg">Registro de paciente</p>
               <button type="button" onClick={() => navigate('/')} className="w-full text-left px-3 py-2 rounded-lg hover:bg-white/70 text-slate-700 transition">
