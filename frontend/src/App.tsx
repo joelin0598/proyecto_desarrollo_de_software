@@ -21,6 +21,7 @@ import PatientReminders from '@/pages/PatientReminders'
 import UserPortal from '@/pages/UserPortal'
 import TriageIntake from '@/pages/TriageIntake'
 import MyAppointments from '@/pages/MyAppointments'
+import PatientProfileEdit from '@/pages/PatientProfileEdit'
 import ProtectedRoute from '@/components/ProtectedRoute'
 import PublicOnlyRoute from '@/components/PublicOnlyRoute'
 import { HOSPITAL_STAFF_ROLES } from '@/services/api'
@@ -86,7 +87,7 @@ function App() {
           <Route
             path="/admin/users"
             element={
-              <ProtectedRoute requiredRoles={['ADMIN', 'ENFERMERA']}>
+              <ProtectedRoute requiredRoles={['ADMIN']}>
                 <UserMaintenance />
               </ProtectedRoute>
             }
@@ -104,7 +105,7 @@ function App() {
            <Route
              path="/triage"
              element={
-               <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+               <ProtectedRoute requiredRoles={['ADMIN', 'ENFERMERA', 'RECEPCION', 'ADMINISTRATIVO']}>
                  <TriageConsultationSelection />
                </ProtectedRoute>
              }
@@ -113,7 +114,7 @@ function App() {
            <Route
              path="/triage/intake"
              element={
-               <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+               <ProtectedRoute requiredRoles={['ADMIN', 'ENFERMERA', 'RECEPCION', 'ADMINISTRATIVO']}>
                  <TriageIntake />
                </ProtectedRoute>
              }
@@ -122,7 +123,7 @@ function App() {
           <Route
             path="/admin/triages"
             element={
-              <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+              <ProtectedRoute requiredRoles={['ADMIN', 'DOCTOR', 'ENFERMERA', 'RECEPCION', 'ADMINISTRATIVO']}>
                 <TriageList />
               </ProtectedRoute>
             }
@@ -131,7 +132,7 @@ function App() {
           <Route
             path="/admin/appointments"
             element={
-              <ProtectedRoute requiredRoles={HOSPITAL_STAFF_ROLES}>
+              <ProtectedRoute requiredRoles={['ADMIN', 'DOCTOR', 'ENFERMERA', 'RECEPCION', 'ADMINISTRATIVO']}>
                 <AppointmentQueue />
               </ProtectedRoute>
             }
@@ -178,6 +179,15 @@ function App() {
             element={
               <ProtectedRoute requiredRoles={['PACIENTE']}>
                 <PatientReminders />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/portal/profile/edit"
+            element={
+              <ProtectedRoute requiredRoles={['PACIENTE']}>
+                <PatientProfileEdit />
               </ProtectedRoute>
             }
           />

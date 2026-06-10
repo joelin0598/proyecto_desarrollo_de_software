@@ -39,7 +39,6 @@ const TriageList: React.FC = () => {
   const [triages, setTriages] = React.useState<TriageListItemResponse[]>([])
   const [searchTerm, setSearchTerm] = React.useState('')
   const [priorityFilter, setPriorityFilter] = React.useState<'ALL' | TriagePriority>('ALL')
-  const [alertFilter, setAlertFilter] = React.useState<'ALL' | 'WITH_ALERT' | 'WITHOUT_ALERT'>('ALL')
 
   const handleLogout = async () => {
     setLoadingLogout(true)
@@ -92,13 +91,10 @@ const TriageList: React.FC = () => {
       ].join(' ').toLowerCase().includes(normalized)
 
       const matchesPriority = priorityFilter === 'ALL' || item.prioridad === priorityFilter
-      const matchesAlert = alertFilter === 'ALL'
-        || (alertFilter === 'WITH_ALERT' && item.alertaEmergencia)
-        || (alertFilter === 'WITHOUT_ALERT' && !item.alertaEmergencia)
 
-      return matchesSearch && matchesPriority && matchesAlert
+      return matchesSearch && matchesPriority
     })
-  }, [triages, searchTerm, priorityFilter, alertFilter])
+  }, [triages, searchTerm, priorityFilter])
 
   return (
     <div className="h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex overflow-hidden">
@@ -151,7 +147,7 @@ const TriageList: React.FC = () => {
             <StatusChip label="Ordenados por fecha de registro" tone="slate" />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
             <input
               type="search"
               value={searchTerm}
@@ -169,15 +165,6 @@ const TriageList: React.FC = () => {
               <option value="NARANJA">NARANJA</option>
               <option value="AMARILLO">AMARILLO</option>
               <option value="VERDE">VERDE</option>
-            </select>
-            <select
-              value={alertFilter}
-              onChange={(event) => setAlertFilter(event.target.value as 'ALL' | 'WITH_ALERT' | 'WITHOUT_ALERT')}
-              className="w-full px-3 py-2 rounded-lg border border-blue-200 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            >
-              <option value="ALL">Con y sin alerta</option>
-              <option value="WITH_ALERT">Solo con alerta</option>
-              <option value="WITHOUT_ALERT">Solo sin alerta</option>
             </select>
           </div>
 

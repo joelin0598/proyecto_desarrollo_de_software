@@ -4,6 +4,7 @@ import his.application.dto.AddLaboratoryResultRequest;
 import his.application.dto.CreateLaboratoryOrderRequest;
 import his.application.dto.ErrorResponse;
 import his.application.dto.LaboratoryOrderResponse;
+import his.application.dto.LaboratoryPaymentRequest;
 import his.application.usecases.LaboratoryUseCase;
 import his.application.services.PatientFlowService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,11 +43,34 @@ public class LaboratoryController {
                 .body(useCase.createOrder(req, getEmail()));
     }
 
-    @Operation(summary = "Confirmar recepción de muestra (EN_PROCESO + etiqueta)")
+    @Operation(summary = "Validar pago de laboratorio y habilitar recepción de muestra")
+    @PostMapping("/orders/{ordenLaboratorioId}/payment")
+    @PreAuthorize("hasAnyAuthority('LABORATORISTA','ADMIN')")
+    public ResponseEntity<LaboratoryOrderResponse> validatePayment(
+            @PathVariable Long ordenLaboratorioId,
+            @Valid @RequestBody LaboratoryPaymentRequest req) {
+        return ResponseEntity.ok(useCase.validatePayment(ordenLaboratorioId, req, getEmail()));
+    }
+
+    @Operation(summary = "Buscar ordenes de laboratorio por DPI del paciente")
+    @GetMapping("/orders/by-patient-dpi")
+    @PreAuthorize("hasAnyAuthority('LABORATORISTA','DOCTOR','ADMIN')")
+    public ResponseEntity<List<LaboratoryOrderResponse>> getOrdersByPatientDpi(@RequestParam String dpi) {
+        return ResponseEntity.ok(useCase.getOrdersByPatientDpi(dpi));
+    }
+
+    @Operation(summary = "Confirmar recepcion de muestra (MUESTRA_RECIBIDA)")
     @PatchMapping("/orders/{ordenLaboratorioId}/receive")
     @PreAuthorize("hasAnyAuthority('LABORATORISTA','ADMIN')")
     public ResponseEntity<LaboratoryOrderResponse> receive(@PathVariable Long ordenLaboratorioId) {
         return ResponseEntity.ok(useCase.receiveSample(ordenLaboratorioId, getEmail()));
+    }
+
+    @Operation(summary = "Iniciar procesamiento de muestra (EN_PROCESO + etiqueta)")
+    @PatchMapping("/orders/{ordenLaboratorioId}/start-processing")
+    @PreAuthorize("hasAnyAuthority('LABORATORISTA','ADMIN')")
+    public ResponseEntity<LaboratoryOrderResponse> startProcessing(@PathVariable Long ordenLaboratorioId) {
+        return ResponseEntity.ok(useCase.startProcessing(ordenLaboratorioId, getEmail()));
     }
 
     @Operation(summary = "Rechazar muestra (FA02)")

@@ -16,7 +16,7 @@ function LandingPage() {
       id: 2,
       title: 'Laboratorio',
       description: 'Solicita exámenes clínicos y consulta resultados',
-      icon: '🧪',
+      icon: '🔬',
       color: 'bg-green-100'
     },
     {
@@ -56,8 +56,8 @@ function LandingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex">
-      <aside className="w-64 bg-blue-100/85 border-r border-blue-200 shadow-sm p-4 flex flex-col justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-sky-50 to-blue-100 text-slate-800 flex items-start">
+      <aside className="w-64 sticky top-0 h-screen bg-blue-100/85 border-r border-blue-200 shadow-sm p-4 flex flex-col justify-between shrink-0">
         <div>
           <div className="mb-7 flex items-center gap-3">
             <img src="/hospital-logo.svg" alt="Hospital" className="h-10 w-10 object-contain" />

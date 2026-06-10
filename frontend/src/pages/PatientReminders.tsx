@@ -30,7 +30,7 @@ const PatientReminders: React.FC = () => {
       <div className="max-w-5xl mx-auto">
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Recordatorios de tratamiento · CU08</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Recordatorios de tratamiento</h2>
             <p className="text-sm text-slate-600 mt-1">Seguimiento de medicamentos despachados en farmacia.</p>
           </div>
           <StatusChip label="Portal paciente" tone="emerald" />

@@ -253,7 +253,7 @@ const AppointmentManagement: React.FC = () => {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-5">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Portal Paciente · CU04</p>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Portal Paciente</p>
             <h2 className="text-2xl font-bold text-slate-900 mt-1">Agendar cita y validar cobertura</h2>
             <p className="text-sm text-slate-600 mt-1">Programa tu consulta y registra método de pago o seguro médico.</p>
           </div>
@@ -270,7 +270,7 @@ const AppointmentManagement: React.FC = () => {
         )}
         <section className="grid grid-cols-1 xl:grid-cols-[260px_minmax(0,1fr)] gap-4 mb-5">
           <aside className="rounded-xl border border-blue-200 bg-white shadow-sm p-4">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-400 mb-3">Flujo CU04</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-400 mb-3">Flujo de citas</p>
             <div className="space-y-2">
               {stepOrder.map((step, index) => {
                 const active = index === stepIndex

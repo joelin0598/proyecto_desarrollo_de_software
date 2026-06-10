@@ -298,10 +298,10 @@ const PharmacyWorkbench: React.FC = () => {
       <main className="flex-1 p-5 lg:p-6 overflow-y-auto">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Farmacia · CU08</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Farmacia</h2>
             <p className="text-sm text-slate-600 mt-1">Flujo: buscar por DPI, seleccionar receta, validar pago y luego despachar.</p>
           </div>
-          <StatusChip label="CU08 activo" tone="emerald" />
+          <StatusChip label="Módulo activo" tone="emerald" />
         </div>
 
         {error && <div className="mb-4 rounded-lg border border-red-300 bg-red-100 px-4 py-3 text-sm text-red-700">{error}</div>}

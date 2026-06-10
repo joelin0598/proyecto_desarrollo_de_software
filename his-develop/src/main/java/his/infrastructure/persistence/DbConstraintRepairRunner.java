@@ -32,8 +32,14 @@ public class DbConstraintRepairRunner implements CommandLineRunner {
                     "ALTER TABLE cita_medica ADD CONSTRAINT cita_medica_estado_cita_check " +
                             "CHECK (estado_cita IN ('PROGRAMADA','EN_CURSO','CANCELADA','ATENDIDA'))");
             log.info("DB fix aplicado: cita_medica_estado_cita_check actualizado");
+
+            jdbcTemplate.execute("ALTER TABLE orden_laboratorio DROP CONSTRAINT IF EXISTS orden_laboratorio_estado_check");
+            jdbcTemplate.execute(
+                    "ALTER TABLE orden_laboratorio ADD CONSTRAINT orden_laboratorio_estado_check " +
+                            "CHECK (estado IN ('PENDIENTE_PAGO','PENDIENTE_MUESTRA','MUESTRA_RECIBIDA','EN_PROCESO','MUESTRA_RECHAZADA','COMPLETADO','FINALIZADO'))");
+            log.info("DB fix aplicado: orden_laboratorio_estado_check actualizado");
         } catch (Exception ex) {
-            log.warn("No se pudo aplicar fix de constraint en cita_medica: {}", ex.getMessage());
+            log.warn("No se pudo aplicar fix de constraints: {}", ex.getMessage());
         }
     }
 

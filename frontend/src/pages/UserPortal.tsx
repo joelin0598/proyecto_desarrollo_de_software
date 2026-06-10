@@ -10,7 +10,7 @@ const mainPortalActions = [
     title: 'Agendar cita',
     icon: '',
     accent: 'from-cyan-500 to-cyan-600',
-    useCase: 'CU04',
+    useCase: 'Citas',
     statusLabel: 'Disponible en portal',
     statusTone: 'blue' as const,
     detail: 'Programar consulta, seleccionar especialidad y validar cobertura de seguro.',
@@ -22,7 +22,7 @@ const mainPortalActions = [
     title: 'Consultar resultados',
     icon: '',
     accent: 'from-emerald-500 to-emerald-600',
-    useCase: 'CU07',
+    useCase: 'Laboratorio',
     statusLabel: 'Sujeto a solvencia',
     statusTone: 'amber' as const,
     detail: 'Visualizar y descargar resultados de laboratorio cuando el proceso técnico y administrativo esté completo.',
@@ -34,7 +34,7 @@ const mainPortalActions = [
     title: 'Recetas y recordatorios',
     icon: '',
     accent: 'from-violet-500 to-violet-600',
-    useCase: 'CU08',
+    useCase: 'Recetas',
     statusLabel: 'Seguimiento activo',
     statusTone: 'emerald' as const,
     detail: 'Consultar prescripciones vigentes, dosis, frecuencia y recordatorios asociados al tratamiento.',
@@ -47,7 +47,7 @@ const mainPortalActions = [
 const patientRecordModules = [
   {
     title: 'Expediente clínico',
-    subtitle: 'CU00 · FA02',
+    subtitle: 'Expediente clínico',
     icon: '',
     accent: 'from-sky-500 to-sky-600',
     statusLabel: 'Acceso protegido',
@@ -56,7 +56,7 @@ const patientRecordModules = [
   },
   {
     title: 'Documentos clínicos',
-    subtitle: 'CU00 · FA03',
+    subtitle: 'Documentación',
     icon: '',
     accent: 'from-fuchsia-500 to-fuchsia-600',
     statusLabel: 'Descarga condicionada',
@@ -65,7 +65,7 @@ const patientRecordModules = [
   },
   {
     title: 'Estado de cuenta',
-    subtitle: 'CU05 · RN03',
+    subtitle: 'Estado financiero',
     icon: '',
     accent: 'from-amber-500 to-amber-600',
     statusLabel: 'Control administrativo',
@@ -160,9 +160,9 @@ const UserPortal: React.FC = () => {
           <div className="flex items-start justify-between gap-4 mb-4">
             <div>
               <h3 className="text-lg font-bold text-slate-900">Servicios principales del portal</h3>
-              <p className="text-sm text-slate-600 mt-1">Mapeados desde el Caso de Uso 0 y sus dependencias funcionales.</p>
+              <p className="text-sm text-slate-600 mt-1">Accesos principales del portal de paciente.</p>
             </div>
-            <StatusChip label="CU00 · Portal" tone="blue" />
+            <StatusChip label="Portal paciente" tone="blue" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -275,7 +275,13 @@ const UserPortal: React.FC = () => {
                 <p className="text-sm font-semibold text-slate-800 mt-0.5">{user?.role}</p>
               </div>
             </div>
-            <button className="w-full mt-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition">Editar perfil</button>
+            <button
+              type="button"
+              onClick={() => navigate('/portal/profile/edit')}
+              className="w-full mt-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition"
+            >
+              Editar perfil
+            </button>
           </article>
 
           <article className="rounded-xl border border-blue-200 bg-white shadow-sm p-5">

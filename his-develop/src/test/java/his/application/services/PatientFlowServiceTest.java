@@ -13,8 +13,12 @@ import his.domain.models.Role;
 import his.domain.models.User;
 import his.domain.ports.HospitalStaffRepository;
 import his.domain.ports.MedicalAppointmentRepository;
+import his.domain.ports.MedicalAppointmentDetailsRepository;
+import his.domain.ports.MedicalPrescriptionDetailsRepository;
+import his.domain.ports.MedicalPrescriptionRepository;
 import his.domain.ports.PatientRepository;
 import his.domain.ports.UserRepository;
+import his.application.usecases.LaboratoryUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +43,10 @@ class PatientFlowServiceTest {
     @Mock private UserRepository userRepository;
     @Mock private HospitalStaffRepository staffRepository;
     @Mock private PaymentValidationService paymentValidationService;
+    @Mock private MedicalAppointmentDetailsRepository medicalAppointmentDetailsRepository;
+    @Mock private MedicalPrescriptionRepository medicalPrescriptionRepository;
+    @Mock private MedicalPrescriptionDetailsRepository medicalPrescriptionDetailsRepository;
+    @Mock private LaboratoryUseCase laboratoryUseCase;
 
     private PatientFlowService service;
 
@@ -49,7 +57,11 @@ class PatientFlowServiceTest {
                 appointmentRepository,
                 userRepository,
                 staffRepository,
-                paymentValidationService);
+                paymentValidationService,
+                medicalAppointmentDetailsRepository,
+                medicalPrescriptionRepository,
+                medicalPrescriptionDetailsRepository,
+                laboratoryUseCase);
     }
 
     @Test

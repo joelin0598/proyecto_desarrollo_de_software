@@ -6,13 +6,22 @@ import his.application.dto.PatientRegisterResponse;
 import his.application.dto.PatientAvailabilityResponse;
 import his.application.dto.PatientTriageRequest;
 import his.application.dto.TriageResponse;
+import his.application.dto.MedicalRecordResponse;
+import his.application.dto.UpdatePatientProfileRequest;
+import his.application.usecases.LaboratoryUseCase;
 import his.domain.models.AdministrativeAppointmentStatus;
 import his.domain.models.HospitalStaff;
+import his.domain.models.MedicalAppointmentDetails;
+import his.domain.models.MedicalPrescription;
+import his.domain.models.MedicalPrescriptionDetails;
 import his.domain.models.MedicalAppointment;
 import his.domain.models.Patient;
 import his.domain.models.Priority;
 import his.domain.models.Role;
 import his.domain.models.StatusAppointment;
+import his.domain.ports.MedicalAppointmentDetailsRepository;
+import his.domain.ports.MedicalPrescriptionDetailsRepository;
+import his.domain.ports.MedicalPrescriptionRepository;
 import his.domain.ports.HospitalStaffRepository;
 import his.domain.ports.MedicalAppointmentRepository;
 import his.domain.ports.PatientRepository;
@@ -26,6 +35,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -39,6 +49,10 @@ public class PatientFlowService {
     private final UserRepository userRepository;
     private final HospitalStaffRepository staffRepository;
     private final PaymentValidationService paymentValidationService;
+    private final MedicalAppointmentDetailsRepository medicalAppointmentDetailsRepository;
+    private final MedicalPrescriptionRepository medicalPrescriptionRepository;
+    private final MedicalPrescriptionDetailsRepository medicalPrescriptionDetailsRepository;
+    private final LaboratoryUseCase laboratoryUseCase;
 
     @Transactional(readOnly = true)
     public PatientAvailabilityResponse checkAvailability(String dpi, String emailContacto) {
@@ -296,6 +310,8 @@ public class PatientFlowService {
         data.put("nombre", patient.getNombreCompleto());
         data.put("dpi", patient.getDpi());
         data.put("email", patient.getEmailContacto());
+        data.put("fechaNacimiento", patient.getFechaNacimiento());
+        data.put("genero", patient.getGenero() != null ? patient.getGenero().name() : null);
         data.put("telefono", patient.getTelefono());
         data.put("direccion", patient.getDireccion());
         data.put("contactoEmergencia", patient.getContactoEmergencia());
@@ -332,6 +348,134 @@ public class PatientFlowService {
         data.put("contactoEmergencia", updated.getContactoEmergencia());
         data.put("telefonoEmergencia", updated.getTelefonoEmergencia());
         return data;
+    }
+
+    @Transactional
+    public Map<String, Object> updatePatientProfile(String emailContacto, UpdatePatientProfileRequest request) {
+        userRepository.findByEmail(emailContacto)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado: " + emailContacto));
+
+        Patient patient = patientRepository.findByEmailContacto(emailContacto)
+                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado para el usuario"));
+
+        if (request.getTelefono() != null) {
+            patient.setTelefono(request.getTelefono().trim());
+        }
+        if (request.getDireccion() != null) {
+            patient.setDireccion(request.getDireccion().trim());
+        }
+        if (request.getGenero() != null) {
+            patient.setGenero(request.getGenero());
+        }
+
+        Patient updated = patientRepository.save(patient);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("id", updated.getPacienteId());
+        data.put("nombre", updated.getNombreCompleto());
+        data.put("dpi", updated.getDpi());
+        data.put("email", updated.getEmailContacto());
+        data.put("fechaNacimiento", updated.getFechaNacimiento());
+        data.put("genero", updated.getGenero() != null ? updated.getGenero().name() : null);
+        data.put("telefono", updated.getTelefono());
+        data.put("direccion", updated.getDireccion());
+        return data;
+    }
+
+    @Transactional(readOnly = true)
+    public MedicalRecordResponse getMedicalRecord(Long patientId) {
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado: " + patientId));
+
+        List<MedicalAppointment> appointments = appointmentRepository.findByPacienteIdOrderByDateTimeDesc(patientId);
+
+        List<MedicalRecordResponse.AppointmentHistoryItem> appointmentItems = appointments.stream()
+                .map(appointment -> MedicalRecordResponse.AppointmentHistoryItem.builder()
+                        .citaMedicaId(appointment.getCitaMedicaId())
+                        .fechaCita(appointment.getFechaCita())
+                        .horaCita(appointment.getHoraCita())
+                        .motivoConsulta(appointment.getMotivoConsulta())
+                        .estadoCita(appointment.getEstadoCita())
+                        .estadoAdministrativo(appointment.getEstadoAdministrativo())
+                        .solvenciaPago(appointment.getSolvenciaPago())
+                        .build())
+                .toList();
+
+        List<MedicalRecordResponse.TriageHistoryItem> triageItems = appointments.stream()
+                .filter(appointment -> appointment.getFechaHoraTriaje() != null)
+                .map(appointment -> MedicalRecordResponse.TriageHistoryItem.builder()
+                        .citaMedicaId(appointment.getCitaMedicaId())
+                        .prioridad(appointment.getPrioridad())
+                        .alertaEmergencia(appointment.getAlertaEmergencia())
+                        .presionSistolica(appointment.getPresionSistolica())
+                        .presionDiastolica(appointment.getPresionDiastolica())
+                        .frecuenciaCardiaca(appointment.getFrecuenciaCardiaca())
+                        .temperatura(appointment.getTemperatura())
+                        .saturacionOxigeno(appointment.getSaturacionOxigeno())
+                        .pesoKg(appointment.getPesoKg())
+                        .tallaCm(appointment.getTallaCm())
+                        .fechaHoraTriaje(appointment.getFechaHoraTriaje())
+                        .build())
+                .toList();
+
+        List<MedicalPrescription> prescriptions = medicalPrescriptionRepository.findByPacienteDpi(patient.getDpi());
+        List<MedicalRecordResponse.PrescriptionHistoryItem> prescriptionItems = prescriptions.stream()
+                .map(prescription -> {
+                    List<MedicalPrescriptionDetails> details = medicalPrescriptionDetailsRepository.findByRecetaId(prescription.getRecetaMedicaId());
+                    List<MedicalRecordResponse.PrescriptionDetailItem> detailItems = details.stream()
+                            .map(detail -> MedicalRecordResponse.PrescriptionDetailItem.builder()
+                                    .recetaMedicaDetalleId(detail.getRecetaMedicaDetalleId())
+                                    .medicamentoId(detail.getMedicamentoId())
+                                    .medicamentoNombre(detail.getMedicamentoNombre())
+                                    .cantidad(detail.getCantidad())
+                                    .dosis(detail.getDosis())
+                                    .viaAdministracion(detail.getViaAdministracion())
+                                    .frecuenciaHoras(detail.getFrecuenciaHoras())
+                                    .duracionDias(detail.getDuracionDias())
+                                    .despachado(detail.isDespachado())
+                                    .pagoValidado(detail.isPagoValidado())
+                                    .build())
+                            .toList();
+
+                    return MedicalRecordResponse.PrescriptionHistoryItem.builder()
+                            .recetaMedicaId(prescription.getRecetaMedicaId())
+                            .citaMedicaDetalleId(prescription.getCitaMedicaDetalleId())
+                            .fechaEmision(prescription.getFechaEmision())
+                            .instruccionesGenerales(prescription.getInstruccionesGenerales())
+                            .createdAt(prescription.getCreatedAt())
+                            .items(detailItems)
+                            .build();
+                })
+                .toList();
+
+        List<MedicalRecordResponse.LaboratoryHistoryItem> laboratoryItems = laboratoryUseCase.getResultsByPatient(patientId).stream()
+                .map(order -> MedicalRecordResponse.LaboratoryHistoryItem.builder()
+                        .ordenLaboratorioId(order.getOrdenLaboratorioId())
+                        .citaMedicaDetalleId(order.getCitaMedicaDetalleId())
+                        .nombreExamen(order.getNombreExamen())
+                        .estado(order.getEstado())
+                        .pagoValidado(order.isPagoValidado())
+                        .etiquetaId(order.getEtiquetaId())
+                        .alertaCritica(order.isAlertaCritica())
+                        .observacionesTecnico(order.getObservacionesTecnico())
+                        .createdAt(order.getCreatedAt())
+                        .resultado(order.getResultado())
+                        .build())
+                .toList();
+
+        return MedicalRecordResponse.builder()
+                .patientId(patient.getPacienteId())
+                .nombreCompleto(patient.getNombreCompleto())
+                .dpi(patient.getDpi())
+                .genero(patient.getGenero())
+                .fechaNacimiento(patient.getFechaNacimiento())
+                .telefono(patient.getTelefono())
+                .direccion(patient.getDireccion())
+                .appointments(appointmentItems)
+                .triages(triageItems)
+                .prescriptions(prescriptionItems)
+                .laboratoryResults(laboratoryItems)
+                .build();
     }
 }
 

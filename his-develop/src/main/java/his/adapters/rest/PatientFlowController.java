@@ -3,10 +3,12 @@ package his.adapters.rest;
 import his.application.dto.ErrorResponse;
 import his.application.dto.PatientAvailabilityResponse;
 import his.application.dto.PatientLookupResponse;
+import his.application.dto.MedicalRecordResponse;
 import his.application.dto.PatientRegisterRequest;
 import his.application.dto.PatientRegisterResponse;
 import his.application.dto.PatientTriageRequest;
 import his.application.dto.TriageResponse;
+import his.application.dto.UpdatePatientProfileRequest;
 import his.application.services.PatientFlowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.Map;
 
@@ -89,9 +94,36 @@ public class PatientFlowController {
         return ResponseEntity.ok(result);
     }
 
+    @PutMapping("/profile/edit")
+    @PreAuthorize("hasAuthority('PACIENTE')")
+    public ResponseEntity<Map<String, Object>> updateProfile(
+            @Valid @RequestBody UpdatePatientProfileRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        log.info("Actualizando perfil restringido de paciente: {}", userDetails.getUsername());
+        Map<String, Object> result = service.updatePatientProfile(userDetails.getUsername(), request);
+        return ResponseEntity.ok(result);
+    }
+
+    @GetMapping("/medical-record/{patientId}")
+    @PreAuthorize("hasAnyAuthority('PACIENTE','DOCTOR','ADMIN','ENFERMERA','LABORATORISTA','FARMACEUTICO','ADMINISTRATIVO','RECEPCION')")
+    public ResponseEntity<MedicalRecordResponse> getMedicalRecord(
+            @PathVariable Long patientId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("PACIENTE"))) {
+            Map<String, Object> current = service.getCurrentPatientData(userDetails.getUsername());
+            Number currentPatientId = (Number) current.get("id");
+            if (currentPatientId == null || currentPatientId.longValue() != patientId.longValue()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
+        return ResponseEntity.ok(service.getMedicalRecord(patientId));
+    }
+
     @ExceptionHandler({IllegalArgumentException.class, IllegalStateException.class})
     public ResponseEntity<ErrorResponse> handleValidation(RuntimeException ex) {
-        log.warn("Validacion CU02 fallida: {}", ex.getMessage());
+        log.warn("Validacion de flujo de pacientes fallida: {}", ex.getMessage());
         return ResponseEntity.badRequest().body(new ErrorResponse(ex.getMessage()));
     }
 
@@ -100,15 +132,15 @@ public class PatientFlowController {
         String msg = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .findFirst()
-                .orElse("Error de validacion en CU02");
+                .orElse("Error de validacion en flujo de pacientes");
         return ResponseEntity.badRequest().body(new ErrorResponse(msg));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex) {
-        log.error("Error inesperado en CU02", ex);
+        log.error("Error inesperado en flujo de pacientes", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse("Error interno del servidor en CU02"));
+                .body(new ErrorResponse("Error interno del servidor en flujo de pacientes"));
     }
 }
 

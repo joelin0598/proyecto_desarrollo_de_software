@@ -280,12 +280,24 @@ export interface ErrorResponse {
   errorMessage: string
 }
 
-export type LaboratoryOrderStatus = 'PENDIENTE_PAGO' | 'PENDIENTE_MUESTRA' | 'EN_PROCESO' | 'MUESTRA_RECHAZADA' | 'FINALIZADO'
+export type LaboratoryOrderStatus = 'PENDIENTE_PAGO' | 'PENDIENTE_MUESTRA' | 'MUESTRA_RECIBIDA' | 'EN_PROCESO' | 'MUESTRA_RECHAZADA' | 'COMPLETADO' | 'FINALIZADO'
 
 export interface CreateLaboratoryOrderRequest {
   citaMedicaDetalleId: number
   nombreExamen: string
   tipoMuestra?: string
+}
+
+export interface LaboratoryPaymentRequest {
+  dpiPaciente?: string
+  metodoPago: PaymentOption
+  bancoTarjeta?: string
+  numeroTarjeta?: string
+  fechaVencimientoTarjeta?: string
+  nombreTitularTarjeta?: string
+  cvc?: string
+  aseguradoraId?: number
+  numeroPoliza?: string
 }
 
 export interface AddLaboratoryResultRequest {
@@ -327,6 +339,75 @@ export interface LaboratoryOrderResponse {
   observacionesTecnico?: string
   createdAt?: string
   resultado?: LaboratoryResultResponse
+}
+
+export interface UpdatePatientProfileRequest {
+  telefono?: string
+  direccion?: string
+  genero?: PatientGender
+}
+
+export interface PatientProfileResponse {
+  id: number
+  nombre: string
+  dpi: string
+  email: string
+  fechaNacimiento?: string
+  genero?: string
+  telefono?: string
+  direccion?: string
+}
+
+export interface MedicalRecordResponse {
+  patientId: number
+  nombreCompleto: string
+  dpi: string
+  genero?: PatientGender
+  fechaNacimiento?: string
+  telefono?: string
+  direccion?: string
+  appointments: Array<{
+    citaMedicaId: number
+    fechaCita?: string
+    horaCita?: string
+    motivoConsulta?: string
+    estadoCita?: string
+    estadoAdministrativo?: string
+    solvenciaPago?: boolean
+  }>
+  triages: Array<{
+    citaMedicaId: number
+    prioridad?: TriagePriority
+    alertaEmergencia?: boolean
+    presionSistolica?: number
+    presionDiastolica?: number
+    frecuenciaCardiaca?: number
+    temperatura?: number
+    saturacionOxigeno?: number
+    pesoKg?: number
+    tallaCm?: number
+    fechaHoraTriaje?: string
+  }>
+  prescriptions: Array<{
+    recetaMedicaId: number
+    citaMedicaDetalleId: number
+    fechaEmision?: string
+    instruccionesGenerales?: string
+    createdAt?: string
+    items: Array<{
+      recetaMedicaDetalleId: number
+      medicamentoId: number
+      medicamentoNombre?: string
+      cantidad?: number
+      dosis?: string
+      viaAdministracion?: string
+      frecuenciaHoras?: number
+      duracionDias?: number
+      despachado?: boolean
+      pagoValidado?: boolean
+    }>
+  }>
+  laboratoryResults: LaboratoryOrderResponse[]
 }
 
 export interface CreatePrescriptionRequest {
@@ -461,11 +542,20 @@ export const laboratoryAPI = {
   createOrder: (data: CreateLaboratoryOrderRequest) =>
     api.post<LaboratoryOrderResponse>('/laboratory/orders', data),
 
+  validateOrderPayment: (ordenLaboratorioId: number, data: LaboratoryPaymentRequest) =>
+    api.post<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}/payment`, data),
+
   getOrdersByDetalle: (citaMedicaDetalleId: number) =>
     api.get<LaboratoryOrderResponse[]>(`/laboratory/orders/by-detalle/${citaMedicaDetalleId}`),
 
+  getOrdersByPatientDpi: (dpi: string) =>
+    api.get<LaboratoryOrderResponse[]>('/laboratory/orders/by-patient-dpi', { params: { dpi } }),
+
   receiveSample: (ordenLaboratorioId: number) =>
     api.patch<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}/receive`),
+
+  startProcessing: (ordenLaboratorioId: number) =>
+    api.patch<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}/start-processing`),
 
   rejectSample: (ordenLaboratorioId: number, motivo: string) =>
     api.patch<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}/reject`, null, { params: { motivo } }),
@@ -475,6 +565,9 @@ export const laboratoryAPI = {
 
   getOrder: (ordenLaboratorioId: number) =>
     api.get<LaboratoryOrderResponse>(`/laboratory/orders/${ordenLaboratorioId}`),
+
+  getResultsByPatient: (patientId: number) =>
+    api.get<LaboratoryOrderResponse[]>(`/laboratory/results-by-patient/${patientId}`),
 }
 
 export const pharmacyAPI = {
@@ -508,11 +601,7 @@ export const pharmacyAPI = {
 
 export type TriagePriority = 'ROJO' | 'NARANJA' | 'AMARILLO' | 'VERDE'
 
-/**
- * CU 2.0 — Solicitud unificada de ingreso y triaje.
- * Combina ficha del paciente + signos vitales.
- * El personalId lo resuelve el backend desde el JWT.
- */
+/** Solicitud unificada de ingreso y triaje. */
 export interface TriageRequest {
   citaMedicaId?: number
   // Datos personales
@@ -682,6 +771,15 @@ export const triageAPI = {
 export const patientAPI = {
   lookupByDpi: (dpi: string) =>
     api.get<PatientLookupResponse>('/patients/lookup', { params: { dpi } }),
+
+  getMyProfile: () =>
+    api.get<PatientProfileResponse>('/patients/me'),
+
+  updateProfile: (data: UpdatePatientProfileRequest) =>
+    api.put<PatientProfileResponse>('/patients/profile/edit', data),
+
+  getMedicalRecord: (patientId: number) =>
+    api.get<MedicalRecordResponse>(`/patients/medical-record/${patientId}`),
 }
 
 export const userMaintenanceAPI = {

@@ -61,6 +61,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
   const [loadingData, setLoadingData] = React.useState(true)
   const [loadingAction, setLoadingAction] = React.useState(false)
   const [feedback, setFeedback] = React.useState<string | null>(null)
+  const [showFinalizeModal, setShowFinalizeModal] = React.useState(false)
   const [focusMode, setFocusMode] = React.useState(false)
   const [lastDraftSavedAt, setLastDraftSavedAt] = React.useState<Date | null>(null)
   const [draftRecovered, setDraftRecovered] = React.useState(false)
@@ -239,8 +240,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
     }
   }
 
-  const closeAttention = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const closeAttention = async () => {
     if (!currentAttention?.citaMedicaDetalleId) {
       setFeedback('No hay detalle de atención asociado. Actualiza la página y vuelve a intentar.')
       await syncCurrentAttention()
@@ -271,6 +271,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
       const message = error?.response?.data?.errorMessage || 'No se pudo cerrar la atención.'
       setFeedback(message)
     } finally {
+      setShowFinalizeModal(false)
       isFinalizingRef.current = false
       setLoadingAction(false)
     }
@@ -320,7 +321,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
           ? prev.ordenLaboratorio
           : `Orden #${data.ordenLaboratorioId} - ${data.nombreExamen}`,
       }))
-      setFeedback(`Orden de laboratorio creada (CU07): #${data.ordenLaboratorioId}.`)
+      setFeedback(`Orden de laboratorio creada: #${data.ordenLaboratorioId}. El pago se valida en laboratorio antes de recibir la muestra.`)
       setLabOrderDraft({ nombreExamen: '', tipoMuestra: '' })
     } catch (error: any) {
       const message = error?.response?.data?.errorMessage || 'No se pudo crear la orden de laboratorio.'
@@ -380,7 +381,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
             ? `${detalle.medicamentoNombre || detalle.medicamentoId} x${detalle.cantidad}`
             : prev.medicacionPrescrita,
       }))
-      setFeedback(`Receta creada (CU08): #${data.recetaMedicaId}.`)
+      setFeedback(`Receta creada: #${data.recetaMedicaId}.`)
       setPrescriptionDraft({
         medicamentoId: '',
         cantidad: '1',
@@ -464,7 +465,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
       <main className={`flex-1 min-w-0 overflow-y-auto transition-all duration-200 ${focusMode ? 'p-3 lg:p-4' : 'p-4 lg:p-5'}`}>
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Atención en curso (CU06)</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Atención en curso</h2>
             <p className="text-sm text-slate-600 mt-1">Registro clínico interactivo. Solo se guarda si el médico finaliza la atención.</p>
             <p className="text-xs text-slate-500 mt-1">Atajos: Alt+1 (Evaluación), Alt+2 (Diagnóstico), Ctrl+Enter (Finalizar), Ctrl+Shift+X (Cancelar).</p>
           </div>
@@ -558,7 +559,16 @@ const AppointmentAttentionInProgress: React.FC = () => {
             </div>
           </div>
         ) : (
-          <form ref={formRef} onSubmit={closeAttention} className="space-y-4">
+          <form
+            ref={formRef}
+            onSubmit={(event) => {
+              event.preventDefault()
+              if (completionPct === 100) {
+                setShowFinalizeModal(true)
+              }
+            }}
+            className="space-y-4"
+          >
             <div className={`grid grid-cols-1 gap-4 ${focusMode ? 'xl:grid-cols-1' : '2xl:grid-cols-12'}`}>
               <section className={`${focusMode ? '' : '2xl:col-span-8'} rounded-xl border border-slate-300 bg-white shadow-sm p-4`}>
                 <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 mb-4 grid grid-cols-1 lg:grid-cols-2 gap-2">
@@ -634,7 +644,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
                 <p className="text-xs text-slate-600">Completa estos campos solo cuando aplique a la consulta actual.</p>
 
                 <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-violet-900">CU07 · Generar orden de laboratorio</p>
+                  <p className="text-xs font-semibold text-violet-900">Generar orden de laboratorio</p>
                   <input
                     value={labOrderDraft.nombreExamen}
                     onChange={(event) => setLabOrderDraft((prev) => ({ ...prev, nombreExamen: event.target.value }))}
@@ -653,7 +663,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
                     disabled={loadingAction}
                     className="w-full px-3 py-2 rounded-lg bg-violet-700 hover:bg-violet-800 text-white text-xs font-semibold disabled:opacity-60"
                   >
-                    Crear orden CU07
+                    Crear orden
                   </button>
                 </div>
 
@@ -789,10 +799,60 @@ const AppointmentAttentionInProgress: React.FC = () => {
             </div>
           </form>
         )}
+
+        {showFinalizeModal && currentAttention && (
+          <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl rounded-xl border border-slate-200 bg-white shadow-xl p-5">
+              <h3 className="text-lg font-bold text-slate-900">Confirmar finalización de consulta</h3>
+              <p className="text-sm text-slate-600 mt-1">Verifica el resumen clínico antes de cerrar la atención.</p>
+
+              <div className="mt-4 space-y-3 text-sm">
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="font-semibold text-slate-800">Diagnóstico</p>
+                  <p className="text-slate-700 mt-1 whitespace-pre-wrap">{form.diagnostico || 'Sin registro'}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="font-semibold text-slate-800">Evaluación física</p>
+                  <p className="text-slate-700 mt-1 whitespace-pre-wrap">{form.evaluacionFisica || 'Sin registro'}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="font-semibold text-slate-800">Medicamentos / Receta</p>
+                  <p className="text-slate-700 mt-1 whitespace-pre-wrap">{form.recetaMedica || 'Sin receta textual registrada'}</p>
+                  <p className="text-slate-700 mt-1 whitespace-pre-wrap">{form.medicacionPrescrita || 'Sin medicación adicional registrada'}</p>
+                </div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <p className="font-semibold text-slate-800">Órdenes analíticas</p>
+                  <p className="text-slate-700 mt-1 whitespace-pre-wrap">{form.ordenLaboratorio || 'Sin órdenes de laboratorio registradas'}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFinalizeModal(false)}
+                  className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold"
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void closeAttention()}
+                  disabled={loadingAction}
+                  className="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-semibold disabled:opacity-60"
+                >
+                  {loadingAction ? 'Finalizando...' : 'Confirmar y finalizar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
 }
 
 export default AppointmentAttentionInProgress
+
+
+
 

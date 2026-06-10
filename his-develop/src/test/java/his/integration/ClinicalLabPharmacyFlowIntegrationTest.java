@@ -5,6 +5,7 @@ import his.application.dto.CloseMedicalAppointmentAttentionRequest;
 import his.application.dto.CreateLaboratoryOrderRequest;
 import his.application.dto.CreatePrescriptionRequest;
 import his.application.dto.DispenseMedicineRequest;
+import his.application.dto.LaboratoryPaymentRequest;
 import his.application.dto.PharmacyPaymentRequest;
 import his.application.dto.RegisterRequest;
 import his.application.dto.RegisterRequestAdmin;
@@ -156,11 +157,32 @@ class ClinicalLabPharmacyFlowIntegrationTest {
         var orden = laboratoryService.createOrder(orderRequest, "doctor.cu060708@example.com");
 
         assertNotNull(orden.getOrdenLaboratorioId());
-        assertEquals("PENDIENTE_MUESTRA", orden.getEstado().name());
+        assertEquals("PENDIENTE_PAGO", orden.getEstado().name());
+        assertFalse(orden.isPagoValidado());
+
+        LaboratoryPaymentRequest labPaymentRequest = new LaboratoryPaymentRequest();
+        labPaymentRequest.setMetodoPago(PaymentOption.TARJETA);
+        labPaymentRequest.setBancoTarjeta("Banco Demo");
+        labPaymentRequest.setNumeroTarjeta("4111111111111111");
+        labPaymentRequest.setFechaVencimientoTarjeta("12/30");
+        labPaymentRequest.setNombreTitularTarjeta("PACIENTE INTEGRACION");
+        labPaymentRequest.setCvc("123");
+
+        var ordenPagada = laboratoryService.validatePayment(
+                orden.getOrdenLaboratorioId(),
+                labPaymentRequest,
+                "lab.cu060708@example.com"
+        );
+
+        assertEquals("PENDIENTE_MUESTRA", ordenPagada.getEstado().name());
+        assertTrue(ordenPagada.isPagoValidado());
 
         var recibida = laboratoryService.receiveSample(orden.getOrdenLaboratorioId(), "lab.cu060708@example.com");
-        assertEquals("EN_PROCESO", recibida.getEstado().name());
-        assertNotNull(recibida.getEtiquetaId());
+        assertEquals("MUESTRA_RECIBIDA", recibida.getEstado().name());
+
+        var enProceso = laboratoryService.startProcessing(orden.getOrdenLaboratorioId(), "lab.cu060708@example.com");
+        assertEquals("EN_PROCESO", enProceso.getEstado().name());
+        assertNotNull(enProceso.getEtiquetaId());
 
         AddLaboratoryResultRequest resultadoReq = new AddLaboratoryResultRequest();
         resultadoReq.setOrdenLaboratorioId(orden.getOrdenLaboratorioId());
@@ -173,7 +195,7 @@ class ClinicalLabPharmacyFlowIntegrationTest {
         resultadoReq.setObservaciones("Validar manejo clínico inmediato");
 
         var ordenFinalizada = laboratoryService.addResult(resultadoReq, "lab.cu060708@example.com");
-        assertEquals("FINALIZADO", ordenFinalizada.getEstado().name());
+        assertEquals("COMPLETADO", ordenFinalizada.getEstado().name());
         assertTrue(ordenFinalizada.isAlertaCritica());
         assertTrue(ordenFinalizada.getResultado().isCritico());
 

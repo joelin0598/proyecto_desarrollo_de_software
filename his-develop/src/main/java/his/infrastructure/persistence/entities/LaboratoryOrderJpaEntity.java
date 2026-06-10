@@ -36,14 +36,16 @@ public class LaboratoryOrderJpaEntity extends BaseEntity {
     @Column(name = "estado", nullable = false, length = 40)
     private LaboratoryOrderStatus estado;
 
-    @Column(name = "pago_validado")
-    private Boolean pagoValidado;
+    @Builder.Default
+    @Column(name = "pago_validado", nullable = false)
+    private Boolean pagoValidado = false;
 
     @Column(name = "etiqueta_id", length = 80)
     private String etiquetaId;
 
-    @Column(name = "alerta_critica")
-    private Boolean alertaCritica;
+    @Builder.Default
+    @Column(name = "alerta_critica", nullable = false)
+    private Boolean alertaCritica = false;
 
     @Column(name = "observaciones_tecnico", length = 500)
     private String observacionesTecnico;

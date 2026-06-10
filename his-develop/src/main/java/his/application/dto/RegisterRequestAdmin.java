@@ -14,6 +14,7 @@ import lombok.NoArgsConstructor;
 public class RegisterRequestAdmin {
     @NotBlank(message = "El nombre completo es obligatorio")
     @Size(min = 5, max = 150, message = "El nombre completo debe tener entre 5 y 150 caracteres")
+    @Pattern(regexp = "^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]{1,50}$", message = "El nombre solo puede contener letras y espacios (máx 50)")
     private String nombreCompleto;
 
     @NotBlank(message = "El email es obligatorio")
