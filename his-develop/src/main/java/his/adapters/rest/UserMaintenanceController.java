@@ -28,7 +28,7 @@ import java.util.List;
 @RequestMapping("/api/users/maintenance")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasAnyAuthority('ADMIN','ENFERMERA')")
+@PreAuthorize("hasAuthority('ADMIN')")
 public class UserMaintenanceController {
     private final UserMaintenanceUseCase userMaintenanceUseCase;
     @GetMapping

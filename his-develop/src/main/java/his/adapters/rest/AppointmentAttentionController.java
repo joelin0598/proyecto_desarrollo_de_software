@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Atencion de Citas (CU06)", description = "Atencion medica: cola de espera, apertura y cierre de atencion sobre citas")
+@Tag(name = "Atención de Citas", description = "Atención médica: cola de espera, apertura y cierre de atención sobre citas")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/appointments/attention")
@@ -33,14 +33,14 @@ public class AppointmentAttentionController {
 
     @Operation(summary = "Cola de espera del medico autenticado (RN09)")
     @GetMapping("/queue")
-    @PreAuthorize("hasAuthority('DOCTOR')")
+    @PreAuthorize("hasAnyAuthority('DOCTOR','ADMIN')")
     public ResponseEntity<List<MedicalAppointmentQueueItemResponse>> getQueue() {
         return ResponseEntity.ok(useCase.getPatientQueue(getAuthenticatedEmail()));
     }
 
     @Operation(summary = "Atencion EN_CURSO del medico autenticado")
     @GetMapping("/current")
-    @PreAuthorize("hasAuthority('DOCTOR')")
+    @PreAuthorize("hasAnyAuthority('DOCTOR','ADMIN')")
     public ResponseEntity<MedicalAppointmentAttentionResponse> getCurrent() {
         MedicalAppointmentAttentionResponse resp = useCase.getCurrentAttention(getAuthenticatedEmail());
         if (resp == null) return ResponseEntity.noContent().build();

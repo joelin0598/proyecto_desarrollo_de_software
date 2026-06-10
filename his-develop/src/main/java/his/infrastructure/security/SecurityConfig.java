@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -49,6 +50,9 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui-custom.html"
                         ).permitAll()
+                        // Permitir a ADMIN y DOCTOR realizar consultas (GET) sobre la atencion de citas,
+                        // pero solo DOCTOR puede ejecutar operaciones de mutacion (POST, PATCH, DELETE)
+                        .requestMatchers(HttpMethod.GET, "/api/appointments/attention/**").hasAnyAuthority("ADMIN", "DOCTOR")
                         .requestMatchers("/api/appointments/attention/**").hasAuthority("DOCTOR")
                         .requestMatchers("/api/patients/register").hasAnyAuthority("ADMIN", "DOCTOR", "ENFERMERA", "LABORATORISTA", "FARMACEUTICO", "ADMINISTRATIVO", "RECEPCION")
                         .requestMatchers("/api/patients/triage").hasAnyAuthority("ADMIN", "DOCTOR", "ENFERMERA", "LABORATORISTA", "FARMACEUTICO", "ADMINISTRATIVO", "RECEPCION")

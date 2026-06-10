@@ -10,4 +10,5 @@ public interface LaboratoryUseCase {
     LaboratoryOrderResponse addResult(AddLaboratoryResultRequest req, String emailLaboratorista);
     List<LaboratoryOrderResponse> getOrdersByDetalle(Long citaMedicaDetalleId);
     LaboratoryOrderResponse getOrder(Long ordenLaboratorioId);
+    List<LaboratoryOrderResponse> getResultsByPatient(Long patientId);
 }

@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { getDefaultRouteForRole, isHospitalStaffRole, useAuth } from '@/context/AuthContext'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
+import HospitalLogo from '@/components/ui/HospitalLogo'
 
 type HeaderProps = {
   inverted?: boolean
@@ -43,11 +44,8 @@ function Header({ inverted = false }: HeaderProps) {
     <header className={`${headerClass} sticky top-0 z-50`}>
       <nav className="container-main flex justify-between items-center py-4">
         {/* Logo */}
-        <div
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 cursor-pointer group"
-        >
-          <div className={`text-3xl font-bold ${inverted ? 'text-blue-200' : 'text-blue-600'}`}>🏥</div>
+        <div onClick={() => navigate('/')} className="flex items-center gap-3 cursor-pointer group">
+          <HospitalLogo className="h-10 w-10" alt="Hospital Logo" />
           <div>
             <h1 className={logoTitleClass}>HIS</h1>
             <p className={logoSubClass}>Hospital Info System</p>

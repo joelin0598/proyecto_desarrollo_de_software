@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @MappedSuperclass
+@jakarta.persistence.EntityListeners(his.infrastructure.persistence.listeners.AuditEntityListener.class)
 public class BaseEntity implements Serializable {
 
     @Column(name = "created_at", updatable = false)

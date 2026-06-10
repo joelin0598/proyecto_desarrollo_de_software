@@ -2,6 +2,9 @@ import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { getDefaultRouteForRole, isHospitalStaffRole, useAuth } from '@/context/AuthContext'
 import { authAPI, HOSPITAL_STAFF_ROLES, RegisterAdminRequest, UserRole } from '@/services/api'
+import PasswordInput from '@/components/PasswordInput'
+
+const NAME_PATTERN = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{1,50}$/
 
 const StaffRegister: React.FC = () => {
   const navigate = useNavigate()
@@ -26,6 +29,14 @@ const StaffRegister: React.FC = () => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+    setError('')
+  }
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    if (value === '' || NAME_PATTERN.test(value)) {
+      setFormData((prev) => ({ ...prev, [name]: value }))
+    }
     setError('')
   }
 
@@ -103,7 +114,7 @@ const StaffRegister: React.FC = () => {
                   type="text"
                   name="nombreCompleto"
                   value={formData.nombreCompleto}
-                  onChange={handleChange}
+                  onChange={handleNameChange}
                   required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                   placeholder="Ana Gomez"
@@ -154,13 +165,12 @@ const StaffRegister: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Contrasena</label>
-                <input
-                  type="password"
+                <PasswordInput
+                  label="Contrasena"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm"
                   placeholder="Minimo 6 caracteres"
                 />
               </div>

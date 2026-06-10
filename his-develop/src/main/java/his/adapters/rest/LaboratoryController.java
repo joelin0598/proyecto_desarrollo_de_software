@@ -5,6 +5,7 @@ import his.application.dto.CreateLaboratoryOrderRequest;
 import his.application.dto.ErrorResponse;
 import his.application.dto.LaboratoryOrderResponse;
 import his.application.usecases.LaboratoryUseCase;
+import his.application.services.PatientFlowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Laboratorio (CU07)", description = "Gestión de exámenes de laboratorio: órdenes, muestras y resultados")
+@Tag(name = "Laboratorio", description = "Gestión de exámenes de laboratorio: órdenes, muestras y resultados")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/laboratory")
@@ -30,6 +31,7 @@ import java.util.List;
 public class LaboratoryController {
 
     private final LaboratoryUseCase useCase;
+    private final PatientFlowService patientFlowService;
 
     @Operation(summary = "Crear orden de laboratorio desde una cita en curso")
     @PostMapping("/orders")
@@ -76,6 +78,23 @@ public class LaboratoryController {
     @PreAuthorize("hasAnyAuthority('LABORATORISTA','DOCTOR','ADMIN')")
     public ResponseEntity<LaboratoryOrderResponse> getOrder(@PathVariable Long ordenLaboratorioId) {
         return ResponseEntity.ok(useCase.getOrder(ordenLaboratorioId));
+    }
+
+    @Operation(summary = "Obtener resultados COMPLETADOS por paciente (solo COMPLETADO visible para paciente)")
+    @GetMapping("/results-by-patient/{patientId}")
+    @PreAuthorize("hasAnyAuthority('LABORATORISTA','DOCTOR','ADMIN','PACIENTE')")
+    public ResponseEntity<List<LaboratoryOrderResponse>> getResultsByPatient(@PathVariable Long patientId) {
+        // Si el solicitante es un paciente, permitir solo acceder a su propio id
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("PACIENTE"))) {
+            var current = patientFlowService.getCurrentPatientData(auth.getName());
+            Number id = (Number) current.get("id");
+            if (id == null || id.longValue() != patientId.longValue()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+        }
+
+        return ResponseEntity.ok(useCase.getResultsByPatient(patientId));
     }
 
     // ── Exception handlers ────────────────────────────────────────────────────

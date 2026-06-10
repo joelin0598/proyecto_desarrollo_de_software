@@ -172,7 +172,7 @@ const AppointmentAttentionWorkspace: React.FC = () => {
       <main className="flex-1 min-w-0 p-4 lg:p-5 overflow-y-auto">
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">Cola clínica priorizada (CU06)</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Cola de Atención Clínica</h2>
             <p className="text-sm text-slate-600 mt-1">Listado de pacientes listos para atención médica. Usa Iniciar para abrir la vista de atención en curso.</p>
           </div>
           <StatusChip label={currentAttention ? 'Atención en curso' : 'Sin atención activa'} tone={currentAttention ? 'emerald' : 'slate'} />

@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { getDefaultRouteForRole, isHospitalStaffRole, useAuth } from '@/context/AuthContext'
 import { authAPI, LoginRequest } from '@/services/api'
 import StatusChip from '@/components/ui/StatusChip'
+import PasswordInput from '@/components/PasswordInput'
 
 const Login: React.FC = () => {
   const navigate = useNavigate()
@@ -103,16 +104,12 @@ const Login: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
-              <input
-                type="password"
+              <PasswordInput
+                label="Contraseña"
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
                 required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                 placeholder="Contraseña"
               />
               <p className="mt-2 text-xs text-gray-500">

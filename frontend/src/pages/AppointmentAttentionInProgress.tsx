@@ -659,7 +659,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
 
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-amber-900">CU08 · Crear receta médica</p>
+                    <p className="text-xs font-semibold text-amber-900">Recetas Médicas</p>
                     <button
                       type="button"
                       onClick={() => void loadMedicines()}
@@ -729,7 +729,7 @@ const AppointmentAttentionInProgress: React.FC = () => {
                     disabled={loadingAction || loadingMedicines || medicines.length === 0}
                     className="w-full px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold disabled:opacity-60"
                   >
-                    Crear receta CU08
+                    Crear receta médica
                   </button>
                 </div>
 
@@ -795,3 +795,4 @@ const AppointmentAttentionInProgress: React.FC = () => {
 }
 
 export default AppointmentAttentionInProgress
+

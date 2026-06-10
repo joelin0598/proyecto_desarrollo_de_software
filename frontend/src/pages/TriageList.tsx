@@ -204,7 +204,6 @@ const TriageList: React.FC = () => {
                       <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Fecha y hora</th>
                       <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Paciente</th>
                       <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Prioridad</th>
-                      <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Alerta</th>
                       <th className="px-3 py-2.5 text-left font-semibold uppercase tracking-wide">Signos vitales</th>
                     </tr>
                   </thead>
@@ -219,12 +218,6 @@ const TriageList: React.FC = () => {
                         </td>
                         <td className="px-3 py-3">
                           <StatusChip label={`Prioridad: ${item.prioridad}`} tone={priorityToneMap[item.prioridad]} />
-                        </td>
-                        <td className="px-3 py-3">
-                          <StatusChip
-                            label={item.alertaEmergencia ? 'Alerta activa' : 'Sin alerta'}
-                            tone={item.alertaEmergencia ? priorityToneMap[item.prioridad] : 'slate'}
-                          />
                         </td>
                         <td className="px-3 py-3 text-slate-700">
                           <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 min-w-[390px]">
@@ -254,10 +247,6 @@ const TriageList: React.FC = () => {
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <StatusChip label={`Prioridad: ${item.prioridad}`} tone={priorityToneMap[item.prioridad]} />
-                        <StatusChip
-                          label={item.alertaEmergencia ? 'Alerta activa' : 'Sin alerta'}
-                          tone={item.alertaEmergencia ? priorityToneMap[item.prioridad] : 'slate'}
-                        />
                       </div>
                     </div>
 

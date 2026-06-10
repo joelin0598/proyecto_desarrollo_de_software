@@ -1,5 +1,6 @@
 import React from 'react'
 import SidebarNavButton from '@/components/ui/SidebarNavButton'
+import HospitalLogo from '@/components/ui/HospitalLogo'
 
 type AdminSidebarProps = {
   email?: string
@@ -38,12 +39,20 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
     <aside className={`h-full shrink-0 relative z-20 bg-blue-100/85 border-r border-blue-200 shadow-sm p-4 flex flex-col justify-between overflow-hidden transition-all duration-300 ${collapsed ? 'w-20' : 'w-64'}`}>
       <div>
         <div className={`mb-7 ${collapsed ? 'flex flex-col items-center gap-3' : ''}`}>
-          {!collapsed && (
-            <>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
-              <h1 className="text-xl font-bold text-slate-900 mt-1">Admin Panel</h1>
-              <p className="text-xs text-slate-600 mt-1">Gestión hospitalaria</p>
-            </>
+          {/* Logo */}
+          {collapsed ? (
+            <div className="flex items-center justify-center">
+              <HospitalLogo className="h-10 w-10" alt="Hospital" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <HospitalLogo className="h-10 w-10" alt="Hospital" />
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">HIS</p>
+                <h1 className="text-xl font-bold text-slate-900 mt-1">Admin Panel</h1>
+                <p className="text-xs text-slate-600 mt-1">Gestión hospitalaria</p>
+              </div>
+            </div>
           )}
           <button
             type="button"
@@ -58,7 +67,7 @@ const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <nav className="space-y-2">
           <SidebarNavButton label="Dashboard" icon="" collapsed={collapsed} active={activeSection === 'dashboard'} onClick={onDashboard} />
           <SidebarNavButton label="Registro y Triaje" icon="" collapsed={collapsed} active={activeSection === 'triage'} onClick={onTriage} />
-          {(role === 'ADMIN' || role === 'ENFERMERA') && (
+          {role === 'ADMIN' && (
             <SidebarNavButton label="Usuarios" icon="" collapsed={collapsed} active={activeSection === 'users'} onClick={onUsers} />
           )}
           <SidebarNavButton label="Citas" icon="" collapsed={collapsed} active={activeSection === 'appointments'} onClick={onAppointments} />

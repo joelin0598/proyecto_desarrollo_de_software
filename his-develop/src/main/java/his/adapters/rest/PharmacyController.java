@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Farmacia (CU08)", description = "Despacho de medicamentos y recordatorios de tratamiento")
+@Tag(name = "Farmacia", description = "Despacho de medicamentos y recordatorios de tratamiento")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/pharmacy")

@@ -205,6 +205,20 @@ public class LaboratoryService implements LaboratoryUseCase {
         return toResponse(order, resultRepository.findByOrdenId(ordenLaboratorioId).orElse(null));
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<LaboratoryOrderResponse> getResultsByPatient(Long patientId) {
+        // Obtener citas del paciente y todas las órdenes asociadas; devolver solo órdenes FINALIZADO
+        return appointmentRepository.findByPacienteIdOrderByDateTimeDesc(patientId).stream()
+                .map(cita -> detailsRepository.findByCitaMedicaId(cita.getCitaMedicaId()))
+                .filter(java.util.Optional::isPresent)
+                .map(java.util.Optional::get)
+                .flatMap(det -> orderRepository.findByCitaMedicaDetalleId(det.getMedicalAppointmentDetailsId()).stream())
+                .filter(o -> o.getEstado() == LaboratoryOrderStatus.FINALIZADO)
+                .map(o -> toResponse(o, resultRepository.findByOrdenId(o.getOrdenLaboratorioId()).orElse(null)))
+                .toList();
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers
     // ─────────────────────────────────────────────────────────────────────────

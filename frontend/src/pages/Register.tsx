@@ -10,6 +10,7 @@ type RegisterFormData = Omit<RegisterRequest, 'genero'> & {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const NAME_PATTERN = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]{1,50}$/
 
 const Register: React.FC = () => {
   const navigate = useNavigate()
@@ -68,12 +69,14 @@ const Register: React.FC = () => {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
-    // Remover números del nombre
-    const sanitized = value.replace(/\d/g, '')
-    setFormData(prev => ({
-      ...prev,
-      [name]: sanitized,
-    }))
+    // Validar según patrón: solo letras acentuadas y espacios, máximo 50
+    const sanitized = value
+    if (sanitized === '' || NAME_PATTERN.test(sanitized)) {
+      setFormData(prev => ({
+        ...prev,
+        [name]: sanitized,
+      }))
+    }
     setError('')
   }
 
@@ -116,6 +119,17 @@ const Register: React.FC = () => {
       if (!formData.genero) {
         setError('Debes seleccionar un genero')
         return
+      }
+
+      // Validacion de edad minima: al menos 7 años
+      if (formData.fechaNacimiento) {
+        const minDate = new Date()
+        minDate.setFullYear(minDate.getFullYear() - 7)
+        const birth = new Date(formData.fechaNacimiento)
+        if (birth > minDate) {
+          setError('No es posible registrar pacientes menores de 7 años')
+          return
+        }
       }
 
       const payload: RegisterRequest = {
